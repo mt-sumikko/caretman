@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>キャレット棒人間エディタ</title>
+  </head>
+  <body>
+    <h1>キャレット棒人間エディタ</h1>
+
+    <div class="editor-wrap" id="wrap">
+      <div class="editor" id="editor" contenteditable="true" spellcheck="false"></div>
+      <div class="figure" id="figure">
+        <svg viewBox="-20 -44 40 60">
+          <defs>
+            <mask id="pencil-mask" maskContentUnits="userSpaceOnUse">
+              <image
+                href="/textures/pencil-grain-placeholder.png"
+                x="-20"
+                y="-44"
+                width="40"
+                height="60"
+                preserveAspectRatio="none"
+              />
+            </mask>
+          </defs>
+          <g id="clean-group">
+            <path class="stroke" id="p-head" d=""></path>
+            <path class="stroke" id="p-body" d=""></path>
+            <path class="stroke" id="p-arms" d=""></path>
+            <path class="stroke" id="p-legs" d=""></path>
+          </g>
+          <g id="rough-group" mask="url(#pencil-mask)"></g>
+        </svg>
+      </div>
+    </div>
+
+    <button class="debug-toggle" id="debug-toggle" type="button" aria-expanded="false" aria-controls="debug-panel">
+      デバッグ
+    </button>
+    <aside class="debug-panel" id="debug-panel" hidden>
+      <div class="debug-row">
+        <span class="debug-label">状態</span>
+        <span id="debug-status">-</span>
+      </div>
+      <div class="debug-row">
+        <label for="debug-scale">サイズ</label>
+        <input type="range" id="debug-scale" min="0.3" max="1.6" step="0.05" value="1.1" />
+        <output id="debug-scale-out">1.10</output>
+      </div>
+      <div class="debug-row">
+        <label for="debug-gap">距離(横)</label>
+        <input type="range" id="debug-gap" min="0" max="1.2" step="0.05" value="0.4" />
+        <output id="debug-gap-out">0.40</output>
+      </div>
+      <div class="debug-row">
+        <label for="debug-texture">線の質感(rough.js+鉛筆テクスチャ)</label>
+        <input type="checkbox" id="debug-texture" checked />
+      </div>
+      <div class="debug-row">
+        <button class="debug-btn" id="debug-giveup" type="button">5秒後に「5分経過」状態にする</button>
+      </div>
+    </aside>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
