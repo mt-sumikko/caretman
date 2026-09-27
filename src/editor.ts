@@ -26,6 +26,7 @@ export class CaretmanEditor {
   private textureEnabled = true;
 
   private lastLineY: number | null = null;
+  private lastCaretX: number | null = null;
   private lastTextLength = 0;
   private currentPose: Pose | null = null;
   private introDemoActive = false;
@@ -228,13 +229,14 @@ export class CaretmanEditor {
     return false;
   }
 
-  private updateFigurePosition(moveKind?: 'jump' | 'hop'): void {
+  private updateFigurePosition(moveKind?: 'jump'): void {
     if (document.activeElement !== this.editor) return;
     if (this.state.getJumpPhase() === 'anticipate') return; // 踏み込み中はその場に留まる
     const rect = this.getCaretRect();
     if (!rect) return;
     const wrapRect = this.wrap.getBoundingClientRect();
     const { width, height } = this.currentFigureSize();
+    const x = rect.left - wrapRect.left;
     const y = rect.bottom - wrapRect.top;
 
     // 改行キー経由でなくても、行を跨ぐ移動なら踏み込み→ジャンプさせる(変換中の折り返しは対象外)
@@ -246,6 +248,7 @@ export class CaretmanEditor {
       Math.abs(y - this.lastLineY) > lineHeightPx * 0.5
     ) {
       this.lastLineY = y;
+      this.lastCaretX = x;
       if (this.state.isThrowActive()) {
         // 削除で行が結合した場合: フルの助走→跳躍→着地ではなく、放り投げに小さい跳ねを重ねた簡易版にする
         this.state.markThrowLineJump();
@@ -256,17 +259,31 @@ export class CaretmanEditor {
     }
     this.lastLineY = y;
 
-    // ジャンプでの移動は跳躍の弧に合わせてゆっくり、通常の移動は素早く
-    const posDuration = moveKind === 'jump' ? 350 : moveKind === 'hop' ? 180 : 90;
-    const posEasing = moveKind ? 'ease-out' : 'linear';
+    // 同一行内での大きな横移動(Home/End・複数文字ジャンプ・クリックでの遠距離移動・IME変換確定など)
+    // を検出して小さいホップを発火する。通常の1文字ずつのタイピングは閾値未満なので歩行のまま
+    const fontSize = parseFloat(getComputedStyle(this.editor).fontSize) || 20;
+    const hopDistanceThreshold = fontSize * 1.5;
+    let isHop = false;
+    if (
+      moveKind !== 'jump' &&
+      !this.state.isThrowActive() &&
+      this.lastCaretX !== null &&
+      Math.abs(x - this.lastCaretX) >= hopDistanceThreshold
+    ) {
+      isHop = true;
+      this.state.triggerHop(performance.now());
+    }
+    this.lastCaretX = x;
+
+    // ジャンプ/ホップでの移動はふわっと、通常の移動は素早く
+    const posDuration = moveKind === 'jump' ? 350 : isHop ? 180 : 90;
+    const posEasing = moveKind === 'jump' || isHop ? 'ease-out' : 'linear';
     this.figure.style.transition = `left ${posDuration}ms ${posEasing}, top ${posDuration}ms ${posEasing}, width 120ms ease, height 120ms ease, opacity 150ms ease`;
 
     this.figure.style.width = `${width}px`;
     this.figure.style.height = `${height}px`;
-    const fontSize = parseFloat(getComputedStyle(this.editor).fontSize) || 20;
     // 後ろに文字がある(=文字の間にいる)時は寄せずにその場に留める
     const hGap = this.hasCharAfterCaret() ? 0 : fontSize * this.gapMult;
-    const x = rect.left - wrapRect.left;
     this.figure.style.left = `${x - width / 2 + hGap}px`;
     this.figure.style.top = `${y - height}px`; // ベースラインは文字に揃える
   }
@@ -280,7 +297,8 @@ export class CaretmanEditor {
       // Undo/Redoはinputtype自体では削除か追加か分からないので、文字数の増減で判定する
       const isHistoryDelete = inputEvent.inputType?.startsWith('history') && newLength < this.lastTextLength;
       if (isDelete || isHistoryDelete) {
-        this.state.triggerThrow(performance.now());
+        const deletedLength = Math.max(1, this.lastTextLength - newLength);
+        this.state.triggerThrow(performance.now(), deletedLength);
       }
       this.lastTextLength = newLength;
       this.updateFigurePosition();
@@ -317,8 +335,9 @@ export class CaretmanEditor {
       this.state.setComposing(false);
       this.figure.classList.remove('composing');
       this.state.recordActivity(performance.now());
-      this.state.triggerConfirmHop(performance.now());
-      this.updateFigurePosition('hop');
+      // 変換確定専用のトリガーは廃止。同一行内の大きな移動を検出する一般ルール(updateFigurePosition内)に
+      // 統合されており、確定で実際に大きく動いた時だけ自然にホップする
+      this.updateFigurePosition();
     });
 
     this.editor.addEventListener('click', () => {
@@ -350,10 +369,12 @@ export class CaretmanEditor {
     });
 
     document.addEventListener('selectionchange', () => {
-      if (document.activeElement === this.editor) {
-        this.state.recordActivity(performance.now());
-        this.updateFigurePosition();
-      }
+      if (document.activeElement !== this.editor) return;
+      const sel = window.getSelection();
+      // ドラッグ/Shift+矢印/ダブル・トリプルクリックなど、選択範囲がある間は選択ポーズを維持する
+      this.state.setSelecting(!!sel && !sel.isCollapsed);
+      this.state.recordActivity(performance.now());
+      this.updateFigurePosition();
     });
   }
 }

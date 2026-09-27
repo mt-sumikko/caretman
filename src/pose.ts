@@ -9,15 +9,18 @@ const ANTICIPATE_DURATION = 130;
 const JUMP_DURATION = 350;
 const BRACE_DURATION = 220;
 const WALK_PHASE_MS = 140; // 歩行の4コマ切り替え間隔(常に一定。速さは移動そのものの速さで表現する)
-const THROW_DURATION = 220;
-const CONFIRM_HOP_DURATION = 180; // 変換確定時の小さいホップ
+const THROW_DURATION_BASE = 220;
+const THROW_DURATION_MAX = 520;
+const THROW_DURATION_PER_CHAR = 12; // 削除した文字数が多いほど、放り投げの余韻を長くする
+const HOP_DURATION = 180; // 同一行内で大きく移動した時の小さいホップ(IME変換確定もこれに含まれる)
 const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
 const SIT_SPEED = 0.05; // 座り込みへの遷移速度
 const SQUASH_SPEED = 0.15; // 文字の間にいる時に体を薄くする速度
 
 // 肘は「肩と手の中点を少し前へ膨らませる」ことで、なめらかな曲げの制御点として使う
-// (決定版レンダリングでの検証値。選択/貼り付けポーズ実装時は専用の値を追加する)
+// (決定版レンダリングでの検証値)
 const TYPING_ELBOW_BEND = 1.5;
+const SELECTING_ELBOW_BEND = 3;
 const DEFAULT_ELBOW_BEND = 2.5;
 
 const neutral = {
@@ -50,8 +53,10 @@ export class StickmanState {
   private throwActive = false;
   private throwLineJump = false; // 投げ中に行またぎが起きた場合、フルジャンプの代わりに小さい跳ねを重ねる簡易版にする
   private throwStart = 0;
-  private confirmHopActive = false;
-  private confirmHopStart = 0;
+  private throwDuration = THROW_DURATION_BASE;
+  private hopActive = false;
+  private hopStart = 0;
+  private selecting = false;
   private composing = false;
   private focused = true;
 
@@ -80,6 +85,10 @@ export class StickmanState {
     return this.focused;
   }
 
+  setSelecting(v: boolean): void {
+    this.selecting = v;
+  }
+
   getJumpPhase(): JumpPhase {
     return this.jumpPhase;
   }
@@ -93,18 +102,24 @@ export class StickmanState {
     this.anticipateStart = now;
   }
 
-  triggerThrow(now: number): void {
+  /** deletedLengthが大きいほど、放り投げの余韻(継続時間)を長くする */
+  triggerThrow(now: number, deletedLength = 1): void {
     this.throwActive = true;
     this.throwStart = now;
+    this.throwDuration = Math.min(
+      THROW_DURATION_MAX,
+      THROW_DURATION_BASE + Math.max(0, deletedLength - 1) * THROW_DURATION_PER_CHAR,
+    );
   }
 
   markThrowLineJump(): void {
     this.throwLineJump = true;
   }
 
-  triggerConfirmHop(now: number): void {
-    this.confirmHopActive = true;
-    this.confirmHopStart = now;
+  /** 同一行内での大きな移動(Home/End・複数文字ジャンプ・IME変換確定など)で発火する小さいホップ */
+  triggerHop(now: number): void {
+    this.hopActive = true;
+    this.hopStart = now;
   }
 
   /** デバッグ用: 「5分経過」状態にremainingMsだけ早く到達させる */
@@ -170,7 +185,7 @@ export class StickmanState {
     let throwProgress = -1;
     let comboHopY = 0;
     if (this.throwActive) {
-      throwProgress = Math.min(1, (now - this.throwStart) / THROW_DURATION);
+      throwProgress = Math.min(1, (now - this.throwStart) / this.throwDuration);
       if (this.throwLineJump) comboHopY = -Math.sin(throwProgress * Math.PI) * 10;
       if (throwProgress >= 1) {
         this.throwActive = false;
@@ -178,33 +193,37 @@ export class StickmanState {
       }
     }
 
-    // IME変換確定時の小さいホップ(改行ジャンプとは別の、軽い一発だけの跳ね)
+    // 同一行内での大きな移動時の小さいホップ(改行ジャンプとは別の、軽い一発だけの跳ね)
     let hopY = 0;
     let hopLeanAmt = 0;
-    if (this.confirmHopActive) {
-      const hopProgress = Math.min(1, (now - this.confirmHopStart) / CONFIRM_HOP_DURATION);
+    if (this.hopActive) {
+      const hopProgress = Math.min(1, (now - this.hopStart) / HOP_DURATION);
       hopY = -Math.sin(hopProgress * Math.PI) * 7;
       hopLeanAmt = Math.sin(hopProgress * Math.PI); // 跳んでいる最中がピークになる前傾具合
-      if (hopProgress >= 1) this.confirmHopActive = false;
+      if (hopProgress >= 1) this.hopActive = false;
     }
 
-    const status = this.confirmHopActive
-      ? '変換確定'
-      : this.jumpPhase === 'anticipate'
-        ? '助走'
-        : this.jumpPhase === 'arc'
-          ? 'ジャンプ中'
-          : this.jumpPhase === 'brace'
-            ? '着地'
-            : this.throwActive
-              ? '放り投げ'
-              : isTyping
-                ? '打っている'
-                : isGivenUp
-                  ? 'あきらめて着席'
-                  : isLongIdle
-                    ? '長い待機'
-                    : '短い待機';
+    const isSelecting = this.selecting && !inJumpSeq && !this.throwActive;
+
+    const status = this.jumpPhase === 'anticipate'
+      ? '助走'
+      : this.jumpPhase === 'arc'
+        ? 'ジャンプ中'
+        : this.jumpPhase === 'brace'
+          ? '着地'
+          : this.throwActive
+            ? '放り投げ'
+            : isSelecting
+              ? '選択中'
+              : this.hopActive
+                ? '移動'
+                : isTyping
+                  ? '打っている'
+                  : isGivenUp
+                    ? 'あきらめて着席'
+                    : isLongIdle
+                      ? '長い待機'
+                      : '短い待機';
 
     const head = { cx: neutral.head.cx, cy: neutral.head.cy, r: neutral.head.r };
     const neck: Point = { x: neutral.neck.x, y: neutral.neck.y };
@@ -297,6 +316,26 @@ export class StickmanState {
       hip.x += twist * 5;
       hip.y -= lungeT * 3;
       head.cx -= twist * 3;
+    } else if (isSelecting) {
+      // 選択ポーズ: 両腕を体幹に沿ってほぼ真上に伸ばし、手先だけわずかに右へ。重心は中央寄りに保つ。
+      // 左足はつま先立ちで接地、右足は膝を上げる
+      armL = { x: 4, y: -44 };
+      armR = { x: 7, y: -42 };
+      kneeL = { x: -3, y: 1 };
+      kneeR = { x: 5, y: -6 };
+      footL = { x: -4, y: 7 };
+      footR = { x: 4, y: -1 };
+    } else if (this.hopActive) {
+      // 大きな移動の小さいホップ: 左から右へ跳ぶイメージで、前傾しながら腕・脚が後方(左)へ流れる
+      head.cx += hopLeanAmt * 6;
+      neck.x += hopLeanAmt * 4;
+      hip.x += hopLeanAmt * 3;
+      armL = { x: neutral.armL.x - hopLeanAmt * 10, y: neutral.armL.y + hopLeanAmt * 5 };
+      armR = { x: neutral.armR.x + hopLeanAmt * 10, y: neutral.armR.y - hopLeanAmt * 7 };
+      kneeL = { x: neutral.legL.x / 2 - hopLeanAmt * 6, y: (hip.y + neutral.legL.y) / 2 + hopLeanAmt * 3 };
+      kneeR = { x: neutral.legR.x / 2 + hopLeanAmt * 4, y: (hip.y + neutral.legR.y) / 2 - hopLeanAmt * 2 };
+      footL = { x: neutral.legL.x - hopLeanAmt * 9, y: neutral.legL.y };
+      footR = { x: neutral.legR.x + hopLeanAmt * 7, y: neutral.legR.y - hopLeanAmt * 3 };
     } else if (isTyping) {
       // 真横から見た歩行サイクル(4コマ): 接地(前)→振り出し中→接地(反転)→振り出し中→...
       // ※ 前後2コマの単純な入れ替えだと左右の脚が同じ形で描画されるため絵が変わらないバグを踏んだので、
@@ -347,17 +386,6 @@ export class StickmanState {
       head.cy -= bounceAmt;
       neck.y -= bounceAmt;
       hip.y -= bounceAmt;
-    } else if (this.confirmHopActive) {
-      // 変換確定の小さいホップ: 左から右へ跳ぶイメージで、前傾しながら腕・脚が後方(左)へ流れる
-      head.cx += hopLeanAmt * 6;
-      neck.x += hopLeanAmt * 4;
-      hip.x += hopLeanAmt * 3;
-      armL = { x: neutral.armL.x - hopLeanAmt * 10, y: neutral.armL.y + hopLeanAmt * 5 };
-      armR = { x: neutral.armR.x + hopLeanAmt * 10, y: neutral.armR.y - hopLeanAmt * 7 };
-      kneeL = { x: neutral.legL.x / 2 - hopLeanAmt * 6, y: (hip.y + neutral.legL.y) / 2 + hopLeanAmt * 3 };
-      kneeR = { x: neutral.legR.x / 2 + hopLeanAmt * 4, y: (hip.y + neutral.legR.y) / 2 - hopLeanAmt * 2 };
-      footL = { x: neutral.legL.x - hopLeanAmt * 9, y: neutral.legL.y };
-      footR = { x: neutral.legR.x + hopLeanAmt * 7, y: neutral.legR.y - hopLeanAmt * 3 };
     } else if (isShortIdle) {
       // 通常時: 腕を上げてキャレットのフリをする(上げ直しは0.2秒くらいで)
       const downArmL = { x: neutral.armL.x, y: neutral.armL.y };
@@ -425,7 +453,7 @@ export class StickmanState {
     footL.y += (hopY + comboHopY) * 0.4;
     footR.y += (hopY + comboHopY) * 0.4;
 
-    const elbowBend = isTyping ? TYPING_ELBOW_BEND : DEFAULT_ELBOW_BEND;
+    const elbowBend = isTyping ? TYPING_ELBOW_BEND : isSelecting ? SELECTING_ELBOW_BEND : DEFAULT_ELBOW_BEND;
 
     return {
       head,

@@ -57,7 +57,7 @@ export const DEMO_STATES: { value: DemoState; label: string; note?: string }[] =
   { value: 'throw', label: '削除(放り投げ)' },
   { value: 'confirmHop', label: '変換確定/複数文字ホップ' },
   { value: 'composing', label: '変換中(表示のみ)' },
-  { value: 'selecting', label: '選択ポーズ(仮)', note: '実エディタ未接続・要検証' },
+  { value: 'selecting', label: '選択ポーズ', note: '実エディタ接続済み' },
   { value: 'pasting', label: '貼り付けポーズ(仮)', note: '実エディタ未接続・要検証' },
 ];
 
@@ -337,14 +337,14 @@ export class DemoStickmanState {
       footL.x = lerp(footL.x, 0, this.squashAmt * 0.9);
       footR.x = lerp(footR.x, 0, this.squashAmt * 0.9);
     } else if (isSelecting) {
-      // 選択ポーズ(仮): 両腕は体幹に沿ってほぼ真上に伸ばし、先端(手)だけ右へ向ける(細さを保つ)。
-      // 左足はつま先立ちで接地、右足は膝を高く上げる
-      armL = { x: 9, y: -44 };
-      armR = { x: 13, y: -42 };
+      // 選択ポーズ: 両腕は体幹に沿ってほぼ真上に伸ばし、先端(手)だけわずかに右へ。重心は中央寄りに保つ。
+      // 左足はつま先立ちで接地、右足は膝を上げる (実エディタ: src/pose.ts と同じ値)
+      armL = { x: 4, y: -44 };
+      armR = { x: 7, y: -42 };
       kneeL = { x: -3, y: 1 };
-      kneeR = { x: 9, y: -6 };
-      footL = { x: -5, y: 7 };
-      footR = { x: 7, y: -1 };
+      kneeR = { x: 5, y: -6 };
+      footL = { x: -4, y: 7 };
+      footR = { x: 4, y: -1 };
     } else if (isPasting) {
       // 貼り付けポーズ(仮): 足先は右側に残したまま、膝だけ左へ入れる。腰を深く屈めて左へ前屈みになる
       hip.x -= 2;
