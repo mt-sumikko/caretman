@@ -24,8 +24,8 @@ const ANTICIPATE_DURATION = 130;
 const JUMP_DURATION = 350;
 const BRACE_DURATION = 220;
 const WALK_PHASE_MS = 140; // 歩行の4コマ切り替え間隔(常に一定。速さは移動そのものの速さで表現する)
-const THROW_DURATION_BASE = 220;
-const THROW_DURATION_MAX = 520;
+const THROW_DURATION_BASE = 380; // 溜め→振り抜き→余韻→戻り、の一連を見せられる長さ
+const THROW_DURATION_MAX = 650;
 const THROW_DURATION_PER_CHAR = 12; // 削除した文字数が多いほど、放り投げの余韻を長くする
 const PASTE_DURATION_BASE = 220;
 const PASTE_DURATION_MAX = 520;
@@ -285,6 +285,7 @@ export class StickmanState {
     let footL: Point;
     let footR: Point;
 
+    let throwElbowBend: number | null = null; // 放り投げ中だけ使う肘の曲げ具合
     if (this.jumpPhase === 'anticipate' || this.jumpPhase === 'brace') {
       // 助走の踏み込み/着地の踏ん張り: 足は地面(neutral)に固定したまま、
       // 膝を曲げて腰と頭が一緒に沈み込む(ニュートラルから正しくブレンド)
@@ -322,55 +323,45 @@ export class StickmanState {
       armL = { x: lerp(neutral.armL.x, raiseArmL.x, arcTuckAmt), y: lerp(neutral.armL.y, raiseArmL.y, arcTuckAmt) };
       armR = { x: lerp(neutral.armR.x, raiseArmR.x, arcTuckAmt), y: lerp(neutral.armR.y, raiseArmR.y, arcTuckAmt) };
     } else if (this.throwActive) {
-      // 両手を画面左に寄せて掴み、片足を前に踏み込みながら両手ごと画面右へ振り抜く
-      const grabL = { x: -15, y: -12 };
-      const grabR = { x: -12, y: -10 };
-      const tossL = { x: 18, y: -22 };
-      const tossR = { x: 21, y: -19 };
-      let axL: number, ayL: number, axR: number, ayR: number;
-      if (throwProgress < 0.25) {
-        const t = throwProgress / 0.25;
-        axL = lerp(neutral.armL.x, grabL.x, t);
-        ayL = lerp(neutral.armL.y, grabL.y, t);
-        axR = lerp(neutral.armR.x, grabR.x, t);
-        ayR = lerp(neutral.armR.y, grabR.y, t);
-      } else if (throwProgress < 0.6) {
-        const t = (throwProgress - 0.25) / 0.35;
-        axL = lerp(grabL.x, tossL.x, t);
-        ayL = lerp(grabL.y, tossL.y, t);
-        axR = lerp(grabR.x, tossR.x, t);
-        ayR = lerp(grabR.y, tossR.y, t);
-      } else {
-        const t = (throwProgress - 0.6) / 0.4;
-        axL = lerp(tossL.x, neutral.armL.x, t);
-        ayL = lerp(tossL.y, neutral.armL.y, t);
-        axR = lerp(tossR.x, neutral.armR.x, t);
-        ayR = lerp(tossR.y, neutral.armR.y, t);
-      }
-      armL = { x: axL, y: ayL };
-      armR = { x: axR, y: ayR };
+      // 放り投げ(棒人間は左向き=消した文字を背中側の画面右へ投げ捨てる):
+      // ①溜め: 左足を大きく踏み込んで低く沈み、前屈みで足元から両手で掬うように掴む
+      // ②投げ: 初速最大で体を右後ろへのけぞらせ、腕を伸ばし切って右上へ振り抜く(勢いで前足が浮く)
+      // ③余韻: 振り抜いた姿勢で一瞬止める → ④元の立ち姿へ戻る
+      const p = throwProgress;
+      const easeOut = (x: number): number => 1 - (1 - x) * (1 - x);
+      // 構え全体の強さ(溜めで0→1、余韻の後に1→0)と、溜め→投げの切り替わり具合(0=溜め/1=振り抜き)
+      const powerT = p < 0.3 ? easeOut(p / 0.3) : p < 0.75 ? 1 : 1 - easeOut((p - 0.75) / 0.25);
+      const throwT = p < 0.3 ? 0 : p < 0.55 ? easeOut((p - 0.3) / 0.25) : 1;
 
-      // 片足(左)を前に大きく踏み込んで全力感を出す
-      const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
-      const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
-      const lungeKneeL = { x: -13, y: 3 };
-      const lungeFootL = { x: -17, y: 8 };
-      const lungeKneeR = { x: 7, y: 3 };
-      const lungeFootR = { x: 11, y: 8 };
-      let lungeT: number;
-      if (throwProgress < 0.25) lungeT = throwProgress / 0.25;
-      else if (throwProgress < 0.6) lungeT = 1;
-      else lungeT = 1 - (throwProgress - 0.6) / 0.4;
-      lungeT = Math.max(0, Math.min(1, lungeT));
-      kneeL = { x: lerp(standKneeL.x, lungeKneeL.x, lungeT), y: lerp(standKneeL.y, lungeKneeL.y, lungeT) };
-      kneeR = { x: lerp(standKneeR.x, lungeKneeR.x, lungeT), y: lerp(standKneeR.y, lungeKneeR.y, lungeT) };
-      footL = { x: lerp(neutral.legL.x, lungeFootL.x, lungeT), y: neutral.legL.y };
-      footR = { x: lerp(neutral.legR.x, lungeFootR.x, lungeT), y: neutral.legR.y };
+      // 胴: 溜めは前(左)に屈んで沈み、投げでは後ろ(右)へのけぞって伸び上がる
+      hip.x += lerp(-2, 1, throwT) * powerT;
+      hip.y += lerp(6, 2, throwT) * powerT;
+      neck.x += lerp(-11, 8, throwT) * powerT;
+      neck.y += lerp(7, 2, throwT) * powerT;
+      head.cx += lerp(-14, 10, throwT) * powerT;
+      head.cy += lerp(7, 2, throwT) * powerT;
 
-      const twist = Math.sin(throwProgress * Math.PI);
-      hip.x += twist * 5;
-      hip.y -= lungeT * 3;
-      head.cx -= twist * 3;
+      // 腕: 足元で掴む → 右上へ伸ばし切って振り抜く(腕の長さはどちらも肩から約16〜18)
+      const grabL = { x: -20, y: -4 };
+      const grabR = { x: -17, y: -1 };
+      const tossL = { x: 18, y: -30 };
+      const tossR = { x: 21, y: -25 };
+      armL = lerpPoint(neutral.armL, lerpPoint(grabL, tossL, throwT), powerT);
+      armR = lerpPoint(neutral.armR, lerpPoint(grabR, tossR, throwT), powerT);
+
+      // 脚: 溜めは左足を踏み込んで膝を曲げ、右足は後ろにまっすぐ。投げでは前足が勢いで浮き上がって伸び、
+      // 体重を受ける後ろ足の膝が少し曲がる
+      const plantFootL = { x: -15, y: neutral.legL.y };
+      const kickFootL = { x: -13, y: 1 };
+      footL = lerpPoint(neutral.legL, lerpPoint(plantFootL, kickFootL, throwT), powerT);
+      footR = lerpPoint(neutral.legR, { x: 10, y: neutral.legR.y }, powerT);
+      const bentKneeL = { x: hip.x - 8, y: hip.y + 4 };
+      const bentKneeR = { x: hip.x + 7, y: hip.y + 5 };
+      kneeL = lerpPoint(lerpPoint(hip, footL, 0.5), bentKneeL, (1 - throwT) * powerT);
+      kneeR = lerpPoint(lerpPoint(hip, footR, 0.5), bentKneeR, throwT * powerT * 0.4);
+
+      // 肘: 掴む時は曲げて力を溜め、振り抜いたら伸ばし切る
+      throwElbowBend = lerp(DEFAULT_ELBOW_BEND, lerp(3.5, 0.2, throwT), powerT);
     } else if (isPasting) {
       // 貼り付け: 足先は右側に残したまま、膝だけ左へ入れる。腰を深く屈めて左へ前屈みになる(決定版検証ツールの値を踏襲)
       hip.x -= 2;
@@ -543,7 +534,9 @@ export class StickmanState {
     footR.y += jumpY + (hopY + comboHopY) * 0.4;
 
     // 助走/着地の踏ん張り中は肘をさらに曲げ、ジャンプの頂点に近づくほど腕を伸ばし切る
-    const elbowBend = isTyping
+    const elbowBend = throwElbowBend !== null
+      ? throwElbowBend
+      : isTyping
       ? TYPING_ELBOW_BEND
       : isSelecting
         ? SELECTING_ELBOW_BEND
