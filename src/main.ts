@@ -3,6 +3,7 @@ import { CaretmanEditor } from './editor';
 import { defaultFilename, downloadText } from './download';
 import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
 import { Autosaver, contentToHtml, loadSavedContent, shouldShowAutosaveNotice } from './autosave';
+import { delay } from './utils';
 
 function requireEl<T extends Element>(id: string): T {
   const el = document.getElementById(id);
@@ -30,26 +31,13 @@ const editor = new CaretmanEditor({
 });
 editor.init();
 
-// 保存済みの内容があれば復元し、無ければ(かつ初回だけ)導入デモを再生する
-const savedContent = loadSavedContent();
-if (savedContent) {
-  editor.restoreContent(contentToHtml(savedContent));
-} else {
-  const INTRO_DEMO_TEXT = 'いっしょに書いてこ〜！';
-  try {
-    if (!localStorage.getItem(INTRO_DEMO_STORAGE_KEY)) {
-      localStorage.setItem(INTRO_DEMO_STORAGE_KEY, '1');
-      void editor.runIntroDemo(INTRO_DEMO_TEXT);
-    }
-  } catch {
-    // プライベートブラウジング等でlocalStorageが使えない場合はデモをスキップする
-  }
-}
-
 const autosaver = new Autosaver(() => editor.getPlainText());
 editor.setOnTextChanged(() => autosaver.scheduleSave());
 
-if (shouldShowAutosaveNotice()) {
+// 自動保存の初回案内は、デモや最初の入力と被らないよう「ひと息ついたタイミング」まで待って出す
+const NOTICE_MIN_DELAY_MS = 1200;
+
+function showAutosaveNotice(): void {
   const notice = requireEl<HTMLElement>('autosave-notice');
   notice.hidden = false;
   requestAnimationFrame(() => notice.classList.add('visible'));
@@ -60,6 +48,30 @@ if (shouldShowAutosaveNotice()) {
     }, 400);
   }, 4000);
 }
+
+// 保存済みの内容があれば復元し、無ければ(かつ初回だけ)導入デモを再生する
+void (async () => {
+  const savedContent = loadSavedContent();
+  if (savedContent) {
+    editor.restoreContent(contentToHtml(savedContent));
+    await delay(NOTICE_MIN_DELAY_MS);
+  } else {
+    const INTRO_DEMO_TEXT = 'いっしょに書いてこ〜！';
+    let ranDemo = false;
+    try {
+      if (!localStorage.getItem(INTRO_DEMO_STORAGE_KEY)) {
+        localStorage.setItem(INTRO_DEMO_STORAGE_KEY, '1');
+        ranDemo = true;
+        await editor.runIntroDemo(INTRO_DEMO_TEXT);
+      }
+    } catch {
+      // プライベートブラウジング等でlocalStorageが使えない場合はデモをスキップする
+    }
+    if (!ranDemo) await delay(NOTICE_MIN_DELAY_MS);
+  }
+
+  if (shouldShowAutosaveNotice()) showAutosaveNotice();
+})();
 
 requireEl<HTMLButtonElement>('btn-dl-txt').addEventListener('click', () => {
   downloadText(editor.getPlainText(), 'txt', 'text/plain;charset=utf-8');
