@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>キャレット棒人間エディタ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/rough.js/3.1.0/rough.umd.js"></script>
+<style>
+  :root {
+    --ink: #2c2c2a;
+    --bg: #faf8f3;
+    --panel: #ffffff;
+    --border: #ddd8cc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #eae7dd;
+      --bg: #1c1b18;
+      --panel: #26241f;
+      --border: #3a382f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+  body {
+    padding: env(safe-area-inset-top, 24px) 20px env(safe-area-inset-bottom, 24px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  h1 {
+    font-size: 15px;
+    font-weight: 500;
+    margin: 4px 0 0;
+  }
+  .status {
+    font-size: 12px;
+    opacity: 0.55;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 900px;
+    font-size: 12px;
+    opacity: 0.75;
+  }
+  .controls input[type="range"] {
+    flex: 1;
+  }
+  .controls output {
+    width: 34px;
+    text-align: right;
+  }
+  .debug-btn {
+    appearance: none;
+    border: 0.5px solid var(--border);
+    background: var(--panel);
+    color: var(--ink);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .debug-btn:active { transform: scale(0.97); }
+  .editor-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+  }
+  .editor {
+    width: 100%;
+    min-height: 480px;
+    background: var(--panel);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 44px 48px;
+    font-size: 60px;
+    line-height: 2;
+    white-space: pre-wrap;
+    word-break: break-word;
+    outline: none;
+    caret-color: transparent;
+  }
+  .editor:empty::before {
+    content: "ここに何か打ってみて";
+    opacity: 0.35;
+  }
+  .figure {
+    position: absolute;
+    width: 20px;
+    height: 30px;
+    pointer-events: none;
+    transition: width 120ms ease, height 120ms ease, opacity 150ms ease;
+    left: 20px;
+    top: 20px;
+    opacity: 1;
+  }
+  .figure.composing {
+    opacity: 0.12;
+  }
+  .figure.unfocused {
+    opacity: 0.5;
+  }
+  .figure svg { width: 100%; height: 100%; overflow: visible; }
+  .stroke {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+</style>
+</head>
+<body>
+
+<h1>キャレット棒人間エディタ</h1>
+<div class="status" id="status">短い待機</div>
+<div class="controls">
+  <label for="scale">サイズ</label>
+  <input type="range" id="scale" min="0.3" max="1.6" step="0.05" value="1.1">
+  <output id="scale-out">1.10</output>
+</div>
+<div class="controls">
+  <label for="gap">距離(横)</label>
+  <input type="range" id="gap" min="0" max="1.2" step="0.05" value="0.4">
+  <output id="gap-out">0.40</output>
+</div>
+<button class="debug-btn" id="debug-giveup">5秒後に「5分経過」状態にする(デバッグ)</button>
+
+<div class="controls">
+  <label for="texture-toggle">線の質感(rough.js+鉛筆テクスチャ)</label>
+  <input type="checkbox" id="texture-toggle" checked>
+</div>
+
+<div class="editor-wrap" id="wrap">
+  <div class="editor" id="editor" contenteditable="true" spellcheck="false"></div>
+  <div class="figure" id="figure">
+    <svg viewBox="-20 -44 40 60">
+      <defs>
+        <mask id="pencil-mask" maskContentUnits="userSpaceOnUse">
+          <!-- 鉛筆テクスチャ画像は出どころ不明のため削除し、白一色(=テクスチャなし)のマスクにしている -->
+          <rect x="-20" y="-44" width="40" height="60" fill="#fff"></rect>
+        </mask>
+      </defs>
+      <g id="clean-group">
+        <path class="stroke" id="p-head" d=""></path>
+        <path class="stroke" id="p-body" d=""></path>
+        <path class="stroke" id="p-arms" d=""></path>
+        <path class="stroke" id="p-legs" d=""></path>
+      </g>
+      <g id="rough-group" mask="url(#pencil-mask)"></g>
+    </svg>
+  </div>
+</div>
+
+<script>
+(function () {
+  const LONG_IDLE_MS = 10000;
+  const SWING_PERIOD_MS = 2600;
+  const GIVE_UP_MS = 5 * 60 * 1000; // 5分煽ったら諦めて座る
+  const TYPE_HOLD_MS = 300;
+  const ANTICIPATE_DURATION = 130;
+  const JUMP_DURATION = 350;
+  const BRACE_DURATION = 220;
+  const WALK_STEP_MIN_MS = 75; // 走っている時の最速コマ間隔
+  const WALK_STEP_MAX_MS = 230; // ゆっくり歩いている時のコマ間隔
+  const THROW_DURATION = 220;
+  const CONFIRM_HOP_DURATION = 180; // 変換確定時の小さいホップ
+  const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
+  const SIT_SPEED = 0.05; // 座り込みへの遷移速度
+  const SQUASH_SPEED = 0.15; // 文字の間にいる時に体を薄くする速度
+  const JITTER_AMOUNT = 0.5;
+  const JITTER_INTERVAL = 40;
+
+  const neutral = {
+    head: { cx: 0, cy: -32, r: 6 },
+    neck: { x: 0, y: -26 },
+    hip:  { x: 0, y: -8 }, // 胴を10%短縮(neck-26から-8)
+    armL: { x: -11.1, y: -9 },
+    armR: { x: 11.1, y: -9 },
+    legL: { x: -6, y: 8 },
+    legR: { x: 6, y: 8 }
+  };
+
+  const editor = document.getElementById('editor');
+  const wrap = document.getElementById('wrap');
+  const figure = document.getElementById('figure');
+  const statusEl = document.getElementById('status');
+  const scaleInput = document.getElementById('scale');
+  const scaleOut = document.getElementById('scale-out');
+  const gapInput = document.getElementById('gap');
+  const gapOut = document.getElementById('gap-out');
+
+  const FIGURE_RATIO = 30 / 44; // 幅:高さの比率(元デザインを踏襲)
+  const BASE_HEIGHT_MULT = 1.35; // フォントサイズに対する基準倍率(scale=1の時)
+
+  let figureScale = parseFloat(scaleInput.value);
+  let gapMult = parseFloat(gapInput.value);
+
+  const pHead = document.getElementById('p-head');
+  const cleanGroup = document.getElementById('clean-group');
+  const roughGroup = document.getElementById('rough-group');
+  const textureToggle = document.getElementById('texture-toggle');
+
+  // rough.js: 比較検証ツール(5倍スケール)で調整した値を、このプロトタイプの座標系(1/5)に換算した値
+  const ROUGH_ROUGHNESS = 0.34;
+  const ROUGH_BOWING = 0.3;
+  const ROUGH_STROKE_WIDTH = 0.8;
+  const ROUGH_SEED = 7; // 固定シード(line boilとの二重ゆらぎを避けるため、毎ティックは変えない)
+
+  let rc = null;
+  try {
+    if (typeof rough !== 'undefined') {
+      rc = rough.svg(document.querySelector('#figure svg'));
+    }
+  } catch (e) {
+    rc = null;
+  }
+  if (!rc) textureToggle.checked = false; // rough.js未読込なら質感トグルは無効化してクリーン版のみに
+  const pBody = document.getElementById('p-body');
+  const pArms = document.getElementById('p-arms');
+  const pLegs = document.getElementById('p-legs');
+
+  let lastKeyTime = performance.now() - (TYPE_HOLD_MS + 1); // 短い待機(腕を上げたデフォルトポーズ)から開始
+  let leanPhase = 0;
+  let armRaiseAmt = 1; // 0=下ろした状態 / 1=上げきった状態
+  let sitAmt = 0; // 0=立っている / 1=座り込み完了
+  let squashAmt = 0; // 0=通常 / 1=文字の間で極限まで薄い
+  let jumpPhase = 'none'; // 'none' | 'anticipate' | 'arc' | 'brace'
+  let anticipateStart = 0;
+  let jumpStart = 0;
+  let braceStart = 0;
+  let throwActive = false;
+  let isEditorFocused = true;
+  let throwLineJump = false; // 投げ中に行またぎが起きた場合、フルジャンプの代わりに小さい跳ねを重ねる簡易版にする
+  let confirmHopActive = false;
+  let confirmHopStart = 0;
+  let throwStart = 0;
+  let isComposingNow = false; // IME変換中かどうか(変換中の行跨ぎはジャンプ判定から除外する)
+  let moveIntervalEMA = 260; // 直近の移動間隔の平均(小さいほど速く動いている=走り)
+  let lastMoveTimestamp = 0;
+  let currentPose = null;
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function j(amount) {
+    return (Math.random() - 0.5) * 2 * amount;
+  }
+
+  function circlePath(cx, cy, r) {
+    return `M ${cx - r} ${cy}
+            A ${r} ${r} 0 1 0 ${cx + r} ${cy}
+            A ${r} ${r} 0 1 0 ${cx - r} ${cy}`;
+  }
+
+  function ellipsePath(cx, cy, rx, ry) {
+    return `M ${cx - rx} ${cy}
+            A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy}
+            A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`;
+  }
+
+  function computePose(now) {
+    const dt = now - lastKeyTime;
+    const inJumpSeq = jumpPhase !== 'none';
+    const isTyping = !inJumpSeq && dt < TYPE_HOLD_MS;
+    const isGivenUp = !inJumpSeq && !isTyping && dt >= LONG_IDLE_MS + GIVE_UP_MS;
+    const isLongIdle = !inJumpSeq && !isTyping && !isGivenUp && dt >= LONG_IDLE_MS;
+    const isShortIdle = !inJumpSeq && !isTyping && !isGivenUp && !isLongIdle;
+
+    // 長い待機の体重移動フェーズ(あきらめたら目標0にして自然に静止へ)
+    const leanTarget = isLongIdle ? Math.sin((now / SWING_PERIOD_MS) * Math.PI * 2) : 0;
+    leanPhase += (leanTarget - leanPhase) * 0.05;
+
+    // 立ってる状態⇔座り込み、をなめらかに繋ぐための係数
+    const sitTarget = isGivenUp ? 1 : 0;
+    sitAmt += (sitTarget - sitAmt) * SIT_SPEED;
+
+    // 腕を上げ直す速度だけ速くする(下ろすのは即座)
+    const armRaiseTarget = isShortIdle ? 1 : 0;
+    if (armRaiseTarget > armRaiseAmt) {
+      armRaiseAmt += (armRaiseTarget - armRaiseAmt) * ARM_RISE_SPEED;
+    } else {
+      armRaiseAmt = armRaiseTarget;
+    }
+
+    // 文字の間にいる時だけ、体を極限まで薄くする
+    const betweenChars = document.activeElement === editor && hasCharAfterCaret();
+    squashAmt += ((betweenChars ? 1 : 0) - squashAmt) * SQUASH_SPEED;
+
+    // 助走の踏み込み(anticipate) → 跳躍(arc) → 着地の踏ん張り(brace)
+    let jumpY = 0;
+    let arcTuckAmt = 0;
+    let crouchAmt = 0;
+    if (jumpPhase === 'anticipate') {
+      const progress = Math.min(1, (now - anticipateStart) / ANTICIPATE_DURATION);
+      crouchAmt = Math.sin(progress * Math.PI / 2);
+      if (progress >= 1) {
+        jumpPhase = 'arc';
+        jumpStart = now;
+        updateFigurePosition('jump'); // 踏み込みが終わった瞬間に、ジャンプの弧に合わせて次の行へ移動開始
+      }
+    } else if (jumpPhase === 'arc') {
+      const progress = Math.min(1, (now - jumpStart) / JUMP_DURATION);
+      jumpY = -Math.sin(progress * Math.PI) * 20;
+      arcTuckAmt = Math.sin(progress * Math.PI); // 空中では膝を曲げて足を引き上げ、地面との間を空ける
+      if (progress >= 1) {
+        jumpPhase = 'brace';
+        braceStart = now;
+        crouchAmt = 1; // 切り替わった瞬間から即座に最大まで曲げておく(1フレーム遅延の防止)
+      }
+    } else if (jumpPhase === 'brace') {
+      const progress = Math.min(1, (now - braceStart) / BRACE_DURATION);
+      crouchAmt = Math.cos(progress * Math.PI / 2); // 着地の瞬間に最大まで曲げ、そこから伸び上がる
+      if (progress >= 1) jumpPhase = 'none';
+    }
+
+    // 文字を消す時の「掴んで放り投げる」ジェスチャー
+    let throwProgress = -1;
+    let comboHopY = 0;
+    if (throwActive) {
+      throwProgress = Math.min(1, (now - throwStart) / THROW_DURATION);
+      if (throwLineJump) comboHopY = -Math.sin(throwProgress * Math.PI) * 10;
+      if (throwProgress >= 1) { throwActive = false; throwLineJump = false; }
+    }
+
+    // IME変換確定時の小さいホップ(改行ジャンプとは別の、軽い一発だけの跳ね)
+    let hopY = 0;
+    let hopLeanAmt = 0;
+    if (confirmHopActive) {
+      const hopProgress = Math.min(1, (now - confirmHopStart) / CONFIRM_HOP_DURATION);
+      hopY = -Math.sin(hopProgress * Math.PI) * 7;
+      hopLeanAmt = Math.sin(hopProgress * Math.PI); // 跳んでいる最中がピークになる前傾具合
+      if (hopProgress >= 1) confirmHopActive = false;
+    }
+
+    const status = confirmHopActive ? '変換確定'
+      : jumpPhase === 'anticipate' ? '助走'
+      : jumpPhase === 'arc' ? 'ジャンプ中'
+      : jumpPhase === 'brace' ? '着地'
+      : throwActive ? '放り投げ'
+      : isTyping ? '打っている'
+      : isGivenUp ? 'あきらめて着席'
+      : isLongIdle ? '長い待機'
+      : '短い待機';
+    statusEl.textContent = status;
+
+    const head = { cx: neutral.head.cx, cy: neutral.head.cy, r: neutral.head.r };
+    const neck = { x: neutral.neck.x, y: neutral.neck.y };
+    const hip = { x: neutral.hip.x, y: neutral.hip.y };
+    let armL, armR, kneeL, kneeR, footL, footR;
+
+    if (jumpPhase === 'anticipate' || jumpPhase === 'brace') {
+      // 助走の踏み込み/着地の踏ん張り: 足は地面(neutral)に固定したまま、
+      // 膝を曲げて腰と頭が一緒に沈み込む(ニュートラルから正しくブレンド)
+      const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
+      const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
+      const crouchKneeL = { x: -9, y: -1 };
+      const crouchKneeR = { x: 9, y: -1 };
+
+      hip.y += crouchAmt * 6;
+      head.cy += crouchAmt * 6;
+      neck.y += crouchAmt * 6;
+      armL = { x: lerp(neutral.armL.x, neutral.armL.x - 4, crouchAmt), y: lerp(neutral.armL.y, neutral.armL.y + 4, crouchAmt) };
+      armR = { x: lerp(neutral.armR.x, neutral.armR.x + 4, crouchAmt), y: lerp(neutral.armR.y, neutral.armR.y + 4, crouchAmt) };
+      kneeL = { x: lerp(standKneeL.x, crouchKneeL.x, crouchAmt), y: lerp(standKneeL.y, crouchKneeL.y, crouchAmt) };
+      kneeR = { x: lerp(standKneeR.x, crouchKneeR.x, crouchAmt), y: lerp(standKneeR.y, crouchKneeR.y, crouchAmt) };
+      footL = { x: neutral.legL.x, y: neutral.legL.y }; // 足は地面に固定(踏ん張り)
+      footR = { x: neutral.legR.x, y: neutral.legR.y };
+    } else if (jumpPhase === 'arc') {
+      // 空中: 膝を曲げて足を引き上げ、地面との間にはっきり余白を作る
+      const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
+      const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
+      const tuckKneeL = { x: -6, y: -5 }, tuckKneeR = { x: 6, y: -5 };
+      const tuckFootL = { x: -4, y: 1 }, tuckFootR = { x: 4, y: 1 };
+      kneeL = { x: lerp(standKneeL.x, tuckKneeL.x, arcTuckAmt), y: lerp(standKneeL.y, tuckKneeL.y, arcTuckAmt) };
+      kneeR = { x: lerp(standKneeR.x, tuckKneeR.x, arcTuckAmt), y: lerp(standKneeR.y, tuckKneeR.y, arcTuckAmt) };
+      footL = { x: lerp(neutral.legL.x, tuckFootL.x, arcTuckAmt), y: lerp(neutral.legL.y, tuckFootL.y, arcTuckAmt) };
+      footR = { x: lerp(neutral.legR.x, tuckFootR.x, arcTuckAmt), y: lerp(neutral.legR.y, tuckFootR.y, arcTuckAmt) };
+      armL = { x: neutral.armL.x, y: neutral.armL.y };
+      armR = { x: neutral.armR.x, y: neutral.armR.y };
+    } else if (throwActive) {
+      // 両手を画面左に寄せて掴み、片足を前に踏み込みながら両手ごと画面右へ振り抜く
+      const grabL = { x: -15, y: -12 };
+      const grabR = { x: -12, y: -10 };
+      const tossL = { x: 18, y: -22 };
+      const tossR = { x: 21, y: -19 };
+      let axL, ayL, axR, ayR;
+      if (throwProgress < 0.25) {
+        const t = throwProgress / 0.25;
+        axL = lerp(neutral.armL.x, grabL.x, t); ayL = lerp(neutral.armL.y, grabL.y, t);
+        axR = lerp(neutral.armR.x, grabR.x, t); ayR = lerp(neutral.armR.y, grabR.y, t);
+      } else if (throwProgress < 0.6) {
+        const t = (throwProgress - 0.25) / 0.35;
+        axL = lerp(grabL.x, tossL.x, t); ayL = lerp(grabL.y, tossL.y, t);
+        axR = lerp(grabR.x, tossR.x, t); ayR = lerp(grabR.y, tossR.y, t);
+      } else {
+        const t = (throwProgress - 0.6) / 0.4;
+        axL = lerp(tossL.x, neutral.armL.x, t); ayL = lerp(tossL.y, neutral.armL.y, t);
+        axR = lerp(tossR.x, neutral.armR.x, t); ayR = lerp(tossR.y, neutral.armR.y, t);
+      }
+      armL = { x: axL, y: ayL };
+      armR = { x: axR, y: ayR };
+
+      // 片足(左)を前に大きく踏み込んで全力感を出す
+      const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
+      const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
+      const lungeKneeL = { x: -13, y: 3 };
+      const lungeFootL = { x: -17, y: 8 };
+      const lungeKneeR = { x: 7, y: 3 };
+      const lungeFootR = { x: 11, y: 8 };
+      let lungeT;
+      if (throwProgress < 0.25) lungeT = throwProgress / 0.25;
+      else if (throwProgress < 0.6) lungeT = 1;
+      else lungeT = 1 - (throwProgress - 0.6) / 0.4;
+      lungeT = Math.max(0, Math.min(1, lungeT));
+
+      kneeL = { x: lerp(standKneeL.x, lungeKneeL.x, lungeT), y: lerp(standKneeL.y, lungeKneeL.y, lungeT) };
+      kneeR = { x: lerp(standKneeR.x, lungeKneeR.x, lungeT), y: lerp(standKneeR.y, lungeKneeR.y, lungeT) };
+      footL = { x: lerp(neutral.legL.x, lungeFootL.x, lungeT), y: neutral.legL.y };
+      footR = { x: lerp(neutral.legR.x, lungeFootR.x, lungeT), y: neutral.legR.y };
+
+      const twist = Math.sin(throwProgress * Math.PI);
+      hip.x += twist * 5;
+      hip.y -= lungeT * 3;
+      head.cx -= twist * 3;
+    } else if (isTyping) {
+      // 真横から見た歩行サイクル(4コマ): 接地(前)→振り出し中→接地(反転)→振り出し中→...
+      // ※ 前後2コマの単純な入れ替えだと左右の脚が同じ形で描画されるため絵が変わらないバグを踏んだので、
+      //   間に「片方の脚が浮いて振り出し中」の非対称なコマを挟んだ4コマ構成にしている
+      const stepMs = Math.max(WALK_STEP_MIN_MS, Math.min(WALK_STEP_MAX_MS, moveIntervalEMA * 0.55));
+      const runAmt = 1 - (stepMs - WALK_STEP_MIN_MS) / (WALK_STEP_MAX_MS - WALK_STEP_MIN_MS); // 0=歩き / 1=走り
+      const phaseMs = lerp(140, 55, runAmt);
+      const front = { x: lerp(9, 13.1, runAmt), y: lerp(8.4, 7.1, runAmt) };
+      const frontKnee = { x: lerp(4, 6, runAmt), y: lerp(3, 2, runAmt) };
+      const back = { x: lerp(-10.2, -15.8, runAmt), y: lerp(7.6, 3.7, runAmt) };
+      const backKnee = { x: lerp(-3, -5, runAmt), y: lerp(-2, -6, runAmt) };
+      const swingFoot = { x: 0, y: lerp(3, 0, runAmt) }; // 振り出し中、膝を高く曲げて浮かせた脚
+      const swingKnee = { x: lerp(2, 3, runAmt), y: lerp(-7, -10, runAmt) };
+      const plantFoot = { x: 0, y: 8 }; // 振り出し中、支えてる方の脚(腰の真下でほぼ直立)
+      const plantKnee = { x: 0, y: 3 };
+      const armFwd = { x: lerp(-7.4, -11.9, runAmt), y: lerp(-15.9, -19.6, runAmt) };
+      const armBack = { x: lerp(10, 13.5, runAmt), y: lerp(-18.5, -26, runAmt) };
+      const bounce = lerp(1.6, 3.2, runAmt);
+      const phase = Math.floor(now / phaseMs) % 4;
+
+      if (phase === 0) {
+        footL = front; kneeL = frontKnee; footR = back; kneeR = backKnee;
+        armL = armBack; armR = armFwd;
+      } else if (phase === 1) {
+        footL = swingFoot; kneeL = swingKnee; footR = plantFoot; kneeR = plantKnee;
+        armL = { x: neutral.armL.x, y: neutral.armL.y };
+        armR = { x: neutral.armR.x, y: neutral.armR.y };
+      } else if (phase === 2) {
+        footL = back; kneeL = backKnee; footR = front; kneeR = frontKnee;
+        armL = armFwd; armR = armBack;
+      } else {
+        footL = plantFoot; kneeL = plantKnee; footR = swingFoot; kneeR = swingKnee;
+        armL = { x: neutral.armL.x, y: neutral.armL.y };
+        armR = { x: neutral.armR.x, y: neutral.armR.y };
+      }
+      const bounceAmt = (phase % 2 === 1) ? bounce : bounce * 0.3; // 振り出し中の方が体は高く上がる
+      head.cy -= bounceAmt;
+      neck.y -= bounceAmt;
+      hip.y -= bounceAmt;
+    } else if (confirmHopActive) {
+      // 変換確定の小さいホップ: 左から右へ跳ぶイメージで、前傾しながら腕・脚が後方(左)へ流れる
+      head.cx += hopLeanAmt * 6;
+      neck.x += hopLeanAmt * 4;
+      hip.x += hopLeanAmt * 3;
+      armL = { x: neutral.armL.x - hopLeanAmt * 10, y: neutral.armL.y + hopLeanAmt * 5 }; // 後方(左)へ流す腕
+      armR = { x: neutral.armR.x + hopLeanAmt * 10, y: neutral.armR.y - hopLeanAmt * 7 }; // 前方(右)へ振り出す腕
+      kneeL = { x: neutral.legL.x / 2 - hopLeanAmt * 6, y: (hip.y + neutral.legL.y) / 2 + hopLeanAmt * 3 };
+      kneeR = { x: neutral.legR.x / 2 + hopLeanAmt * 4, y: (hip.y + neutral.legR.y) / 2 - hopLeanAmt * 2 };
+      footL = { x: neutral.legL.x - hopLeanAmt * 9, y: neutral.legL.y }; // 後方に流れる(トレイル)脚
+      footR = { x: neutral.legR.x + hopLeanAmt * 7, y: neutral.legR.y - hopLeanAmt * 3 }; // 前に出す脚
+    } else if (isShortIdle) {
+      // 通常時: 腕を上げてキャレットのフリをする(上げ直しは0.2秒くらいで)
+      const downArmL = { x: neutral.armL.x, y: neutral.armL.y };
+      const downArmR = { x: neutral.armR.x, y: neutral.armR.y };
+      const upArmL = { x: -4, y: -42 };
+      const upArmR = { x: 4, y: -42 };
+      armL = { x: lerp(downArmL.x, upArmL.x, armRaiseAmt), y: lerp(downArmL.y, upArmL.y, armRaiseAmt) };
+      armR = { x: lerp(downArmR.x, upArmR.x, armRaiseAmt), y: lerp(downArmR.y, upArmR.y, armRaiseAmt) };
+      kneeL = { x: neutral.legL.x / 2, y: (hip.y + neutral.legL.y) / 2 };
+      kneeR = { x: neutral.legR.x / 2, y: (hip.y + neutral.legR.y) / 2 };
+      footL = { x: neutral.legL.x, y: neutral.legL.y };
+      footR = { x: neutral.legR.x, y: neutral.legR.y };
+
+      // 文字の間にいる時は、腕・脚を中心軸まで寄せてほぼ棒状に潰す
+      armL.x = lerp(armL.x, 0, squashAmt * 0.9);
+      armR.x = lerp(armR.x, 0, squashAmt * 0.9);
+      kneeL.x = lerp(kneeL.x, 0, squashAmt * 0.9);
+      kneeR.x = lerp(kneeR.x, 0, squashAmt * 0.9);
+      footL.x = lerp(footL.x, 0, squashAmt * 0.9);
+      footR.x = lerp(footR.x, 0, squashAmt * 0.9);
+    } else {
+      // 長い待機(体重移動) ⇔ 諦めて座り込み、をsitAmtでなめらかに繋ぐ
+      const hipShift = leanPhase * 5;
+      const headShift = leanPhase * -2.5;
+      const armSwingLean = leanPhase * 5;
+
+      const swayHip = { x: neutral.hip.x + hipShift, y: neutral.hip.y };
+      const swayHeadCx = neutral.head.cx + headShift;
+      const swayNeckX = neutral.neck.x + headShift * 0.6;
+      const swayArmL = { x: neutral.armL.x, y: neutral.armL.y - armSwingLean };
+      const swayArmR = { x: neutral.armR.x, y: neutral.armR.y + armSwingLean };
+      const swayKneeL = { x: neutral.legL.x / 2, y: (swayHip.y + neutral.legL.y) / 2 };
+      const swayKneeR = { x: neutral.legR.x / 2, y: (swayHip.y + neutral.legR.y) / 2 };
+      const swayFootL = { x: neutral.legL.x, y: neutral.legL.y };
+      const swayFootR = { x: neutral.legR.x, y: neutral.legR.y };
+
+      const sitHip = { x: neutral.hip.x, y: neutral.hip.y + 16 };
+      const sitArmL = { x: -8, y: 4 };
+      const sitArmR = { x: 8, y: 4 };
+      const sitKneeL = { x: -10, y: 6 };
+      const sitKneeR = { x: 10, y: 6 };
+      const sitFootL = { x: -15, y: 8 };
+      const sitFootR = { x: 15, y: 8 };
+
+      hip.x = lerp(swayHip.x, sitHip.x, sitAmt);
+      hip.y = lerp(swayHip.y, sitHip.y, sitAmt);
+      head.cx = lerp(swayHeadCx, neutral.head.cx, sitAmt);
+      head.cy += sitAmt * 13;
+      neck.x = lerp(swayNeckX, neutral.neck.x, sitAmt);
+      neck.y += sitAmt * 13;
+      armL = { x: lerp(swayArmL.x, sitArmL.x, sitAmt), y: lerp(swayArmL.y, sitArmL.y, sitAmt) };
+      armR = { x: lerp(swayArmR.x, sitArmR.x, sitAmt), y: lerp(swayArmR.y, sitArmR.y, sitAmt) };
+      kneeL = { x: lerp(swayKneeL.x, sitKneeL.x, sitAmt), y: lerp(swayKneeL.y, sitKneeL.y, sitAmt) };
+      kneeR = { x: lerp(swayKneeR.x, sitKneeR.x, sitAmt), y: lerp(swayKneeR.y, sitKneeR.y, sitAmt) };
+      footL = { x: lerp(swayFootL.x, sitFootL.x, sitAmt), y: lerp(swayFootL.y, sitFootL.y, sitAmt) };
+      footR = { x: lerp(swayFootR.x, sitFootR.x, sitAmt), y: lerp(swayFootR.y, sitFootR.y, sitAmt) };
+    }
+
+    // ジャンプの跳ね上がり(jumpY)・変換確定ホップ(hopY)はどの状態の上にも重ねる
+    head.cy += jumpY + hopY + comboHopY;
+    neck.y += jumpY + hopY + comboHopY;
+    hip.y += jumpY + hopY + comboHopY;
+    armL.y += jumpY + hopY + comboHopY;
+    armR.y += jumpY + hopY + comboHopY;
+    footL.y += (hopY + comboHopY) * 0.4;
+    footR.y += (hopY + comboHopY) * 0.4;
+
+    return { head, neck, hip, armL, armR, kneeL, kneeR, legL: footL, legR: footR };
+  }
+
+  function draw() {
+    const p = currentPose;
+    if (!p) return;
+    const a = isEditorFocused ? JITTER_AMOUNT : 0; // フォーカスが外れてる間はline boilを止める
+
+    const neck = { x: p.neck.x + j(a), y: p.neck.y + j(a) };
+    const hip = { x: p.hip.x + j(a), y: p.hip.y + j(a) };
+    const armL = { x: p.armL.x + j(a), y: p.armL.y + j(a) };
+    const armR = { x: p.armR.x + j(a), y: p.armR.y + j(a) };
+    const kneeL = { x: p.kneeL.x + j(a), y: p.kneeL.y + j(a) };
+    const kneeR = { x: p.kneeR.x + j(a), y: p.kneeR.y + j(a) };
+    const legL = { x: p.legL.x + j(a), y: p.legL.y + j(a) };
+    const legR = { x: p.legR.x + j(a), y: p.legR.y + j(a) };
+    const shoulder = { x: neck.x + (hip.x - neck.x) * 0.30, y: neck.y + (hip.y - neck.y) * 0.30 };
+    const headCx = p.head.cx + j(a);
+    const headCy = p.head.cy + j(a * 0.6);
+    const headRy = p.head.r + j(a * 0.3);
+    const headRx = Math.max(1.2, headRy * (0.88 - squashAmt * 0.73)); // squash=0でも少し縦長の楕円に
+
+    const useTexture = rc && textureToggle.checked;
+    cleanGroup.style.display = useTexture ? 'none' : '';
+    roughGroup.style.display = useTexture ? '' : 'none';
+
+    if (useTexture) {
+      while (roughGroup.firstChild) roughGroup.removeChild(roughGroup.firstChild);
+      const opts = {
+        roughness: ROUGH_ROUGHNESS,
+        bowing: ROUGH_BOWING,
+        stroke: getComputedStyle(document.body).color,
+        strokeWidth: ROUGH_STROKE_WIDTH,
+        seed: ROUGH_SEED
+      };
+      try {
+        roughGroup.appendChild(rc.ellipse(headCx, headCy, headRx * 2, Math.max(3, headRy) * 2, opts));
+        roughGroup.appendChild(rc.line(neck.x, neck.y, hip.x, hip.y, opts));
+        roughGroup.appendChild(rc.line(armL.x, armL.y, shoulder.x, shoulder.y, opts));
+        roughGroup.appendChild(rc.line(shoulder.x, shoulder.y, armR.x, armR.y, opts));
+        roughGroup.appendChild(rc.line(legL.x, legL.y, kneeL.x, kneeL.y, opts));
+        roughGroup.appendChild(rc.line(kneeL.x, kneeL.y, hip.x, hip.y, opts));
+        roughGroup.appendChild(rc.line(hip.x, hip.y, kneeR.x, kneeR.y, opts));
+        roughGroup.appendChild(rc.line(kneeR.x, kneeR.y, legR.x, legR.y, opts));
+      } catch (e) {
+        // 失敗してもクリーン版にフォールバックさせず、次のティックで再試行するだけにする
+      }
+    } else {
+      pHead.setAttribute('d', ellipsePath(headCx, headCy, headRx, Math.max(3, headRy)));
+      pBody.setAttribute('d', `M ${neck.x} ${neck.y} L ${hip.x} ${hip.y}`);
+      pArms.setAttribute('d', `M ${armL.x} ${armL.y} L ${shoulder.x} ${shoulder.y} L ${armR.x} ${armR.y}`);
+      pLegs.setAttribute('d', `M ${legL.x} ${legL.y} L ${kneeL.x} ${kneeL.y} L ${hip.x} ${hip.y} L ${kneeR.x} ${kneeR.y} L ${legR.x} ${legR.y}`);
+    }
+  }
+
+  setInterval(draw, JITTER_INTERVAL);
+
+  function loop(now) {
+    currentPose = computePose(now);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---- キャレット座標の取得と追従 ----
+  function getCaretRect() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const liveRange = sel.getRangeAt(0);
+    const range = liveRange.cloneRange();
+    range.collapse(true);
+    let rects = range.getClientRects();
+    if (rects.length > 0) return rects[0];
+
+    const marker = document.createElement('span');
+    marker.appendChild(document.createTextNode('\u200b'));
+    range.insertNode(marker);
+    const rect = marker.getBoundingClientRect();
+    const parent = marker.parentNode;
+    parent.removeChild(marker);
+    parent.normalize();
+    return rect;
+  }
+
+  function currentFigureSize() {
+    const fontSize = parseFloat(getComputedStyle(editor).fontSize) || 20;
+    const height = fontSize * BASE_HEIGHT_MULT * figureScale;
+    const width = height * FIGURE_RATIO;
+    return { width, height };
+  }
+
+  function hasCharAfterCaret() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return false;
+    const r = sel.getRangeAt(0);
+    const node = r.startContainer;
+    const offset = r.startOffset;
+    if (node.nodeType === Node.TEXT_NODE) {
+      return offset < node.textContent.length;
+    }
+    // 要素内: 改行直後の<br>プレースホルダーだけは「後ろに文字がある」に含めない
+    for (let i = offset; i < node.childNodes.length; i++) {
+      const child = node.childNodes[i];
+      if (child.nodeName === 'BR') continue;
+      if (child.nodeType === Node.TEXT_NODE && child.textContent.length === 0) continue;
+      return true;
+    }
+    return false;
+  }
+
+  let lastLineY = null; // 直前の行のy座標(行を跨いだかどうかの判定用)
+
+  function updateFigurePosition(moveKind) {
+    if (document.activeElement !== editor) return;
+    if (jumpPhase === 'anticipate') return; // 踏み込み中はその場に留まる
+    const rect = getCaretRect();
+    if (!rect) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const { width, height } = currentFigureSize();
+    const y = rect.bottom - wrapRect.top;
+
+    // 改行キー経由でなくても、行を跨ぐ移動なら踏み込み→ジャンプさせる(変換中の折り返しは対象外)
+    const lineHeightPx = parseFloat(getComputedStyle(editor).lineHeight) || height;
+    if (lastLineY !== null && jumpPhase === 'none' && !isComposingNow && Math.abs(y - lastLineY) > lineHeightPx * 0.5) {
+      lastLineY = y;
+      if (throwActive) {
+        // 削除で行が結合した場合: フルの助走→跳躍→着地ではなく、放り投げに小さい跳ねを重ねた簡易版にする
+        throwLineJump = true;
+      } else {
+        jumpPhase = 'anticipate';
+        anticipateStart = performance.now();
+        return; // 位置はまだ動かさず、踏み込みが終わってから移動する
+      }
+    }
+    lastLineY = y;
+
+    // 移動の間隔を計測(歩き⇔走りの速さの判定に使う)。ジャンプ時/変換中は計測対象外
+    if (moveKind !== 'jump' && moveKind !== 'hop' && !isComposingNow) {
+      const nowTs = performance.now();
+      if (lastMoveTimestamp) {
+        const interval = Math.min(900, nowTs - lastMoveTimestamp);
+        moveIntervalEMA += (interval - moveIntervalEMA) * 0.3;
+      }
+      lastMoveTimestamp = nowTs;
+    }
+
+    // ジャンプでの移動は跳躍の弧に合わせてゆっくり、通常の移動は素早く。投げ+行またぎの簡易版は投げの速さに合わせる
+    const posDuration = moveKind === 'jump' ? JUMP_DURATION : moveKind === 'hop' ? CONFIRM_HOP_DURATION : throwLineJump ? THROW_DURATION : 90;
+    const posEasing = (moveKind || throwLineJump) ? 'ease-out' : 'linear';
+    figure.style.transition = `left ${posDuration}ms ${posEasing}, top ${posDuration}ms ${posEasing}, width 120ms ease, height 120ms ease, opacity 150ms ease`;
+
+    figure.style.width = width + 'px';
+    figure.style.height = height + 'px';
+    const fontSize = parseFloat(getComputedStyle(editor).fontSize) || 20;
+    // 後ろに文字がある(=文字の間にいる)時は寄せずにその場に留める
+    const hGap = hasCharAfterCaret() ? 0 : fontSize * gapMult;
+    const x = rect.left - wrapRect.left;
+    figure.style.left = (x - width / 2 + hGap) + 'px';
+    figure.style.top = (y - height) + 'px'; // ベースラインは文字に揃える
+  }
+
+  scaleInput.addEventListener('input', function () {
+    figureScale = parseFloat(scaleInput.value);
+    scaleOut.textContent = figureScale.toFixed(2);
+    updateFigurePosition();
+  });
+
+  gapInput.addEventListener('input', function () {
+    gapMult = parseFloat(gapInput.value);
+    gapOut.textContent = gapMult.toFixed(2);
+    updateFigurePosition();
+  });
+
+  document.getElementById('debug-giveup').addEventListener('click', function () {
+    // 5秒後にちょうど「5分あきらめ経過」に到達するよう、lastKeyTimeを過去にずらす
+    lastKeyTime = performance.now() - (LONG_IDLE_MS + GIVE_UP_MS) + 5000;
+  });
+
+  let lastTextLength = 0;
+
+  editor.addEventListener('input', function (e) {
+    lastKeyTime = performance.now();
+    const newLength = editor.textContent.length;
+    const isDelete = e.inputType && e.inputType.indexOf('delete') === 0 && !e.isComposing;
+    // Undo/Redoはinputtype自体では削除か追加か分からないので、文字数の増減で判定する
+    const isHistoryDelete = e.inputType && e.inputType.indexOf('history') === 0 && newLength < lastTextLength;
+    if (isDelete || isHistoryDelete) {
+      throwActive = true;
+      throwStart = performance.now();
+    }
+    lastTextLength = newLength;
+    updateFigurePosition();
+  });
+  editor.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.isComposing) {
+      jumpPhase = 'anticipate';
+      anticipateStart = performance.now();
+    }
+  });
+  editor.addEventListener('keyup', function () {
+    lastKeyTime = performance.now();
+    updateFigurePosition();
+  });
+  editor.addEventListener('compositionstart', function () {
+    isComposingNow = true;
+    figure.classList.add('composing');
+  });
+  editor.addEventListener('compositionupdate', function () {
+    lastKeyTime = performance.now();
+    updateFigurePosition();
+  });
+  editor.addEventListener('compositionend', function () {
+    isComposingNow = false;
+    figure.classList.remove('composing');
+    lastKeyTime = performance.now();
+    confirmHopActive = true;
+    confirmHopStart = performance.now();
+    updateFigurePosition('hop');
+  });
+  editor.addEventListener('click', function () {
+    lastKeyTime = performance.now();
+    updateFigurePosition();
+  });
+  editor.addEventListener('blur', function () {
+    isEditorFocused = false;
+    figure.classList.add('unfocused');
+  });
+  editor.addEventListener('focus', function () {
+    isEditorFocused = true;
+    figure.classList.remove('unfocused');
+    updateFigurePosition();
+  });
+  window.addEventListener('resize', function () {
+    // リサイズで位置がずれる場合も、既存の移動ルール(同一行スライド/行またぎジャンプ)をそのまま適用する
+    updateFigurePosition();
+  });
+  document.addEventListener('selectionchange', function () {
+    if (document.activeElement === editor) {
+      lastKeyTime = performance.now();
+      updateFigurePosition();
+    }
+  });
+
+  // 初期表示: 実際のフォーカス/キーボード操作を待たずに、正しいサイズ・位置で表示する
+  const initSize = currentFigureSize();
+  figure.style.width = initSize.width + 'px';
+  figure.style.height = initSize.height + 'px';
+  try {
+    const initRange = document.createRange();
+    initRange.setStart(editor, 0);
+    initRange.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(initRange);
+  } catch (e) {}
+  editor.focus();
+  updateFigurePosition();
+})();
+</script>
+
+</body>
+</html>
