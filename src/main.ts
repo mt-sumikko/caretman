@@ -2,6 +2,7 @@ import './style.css';
 import './debug.css';
 import { CaretmanEditor } from './editor';
 import { DebugPanel } from './debugPanel';
+import { downloadText } from './download';
 
 function requireEl<T extends Element>(id: string): T {
   const el = document.getElementById(id);
@@ -39,6 +40,13 @@ try {
 } catch {
   // プライベートブラウジング等でlocalStorageが使えない場合はデモをスキップする
 }
+
+requireEl<HTMLButtonElement>('btn-dl-txt').addEventListener('click', () => {
+  downloadText(editor.getPlainText(), 'txt', 'text/plain;charset=utf-8');
+});
+requireEl<HTMLButtonElement>('btn-dl-md').addEventListener('click', () => {
+  downloadText(editor.getPlainText(), 'md', 'text/markdown;charset=utf-8');
+});
 
 new DebugPanel(
   {

@@ -62,6 +62,11 @@ export class CaretmanEditor {
     return this.currentPose?.status ?? '';
   }
 
+  /** 打った内容をプレーンテキストとして取得する(.txt/.mdダウンロード用) */
+  getPlainText(): string {
+    return this.editor.innerText;
+  }
+
   /** デバッグ用: 5秒後に「5分あきらめ経過」状態に到達させる */
   debugFastForwardToGivenUp(): void {
     this.state.debugFastForwardToGivenUp(performance.now(), 5000);
