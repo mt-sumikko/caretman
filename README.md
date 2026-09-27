@@ -56,20 +56,22 @@
 ## ディレクトリ構成
 
 ```
-index.html            本体(エディタ)のHTML
-motion-review.html     モーション調整専用の別ツール(本体と独立して反復調整できるようにしたもの)
+index.html             本体(エディタ)のHTML
+motion-review.html     モーション確認ページ(各モーションを単体で繰り返し再生+コマ送りの図鑑)
 src/
   main.ts              起動処理・自動保存/共有・ダウンロードUIの配線
-  editor.ts             contenteditableのイベント処理、キャレット追従
-  pose.ts                棒人間のポーズ計算(状態機械)
-  render.ts              rough.js + SVGでの実際の描画
-  autosave.ts            localStorage自動保存
-  download.ts            .txt/.mdダウンロード
-  introDemo.ts            初回イントロデモ
-  debugPanel.ts           開発ビルドのみで読み込まれるデバッグUI(本番ビルドからは自動で除外される)
-  motionReview/           motion-review.html用の独立したモーション確認ツール一式
-public/textures/         鉛筆テクスチャ画像
-docs/                    初期の仕様書・プロトタイプ(企画の経緯の記録)
+  editor.ts            contenteditableのイベント処理、キャレット追従、初回イントロデモの再生
+  pose.ts              棒人間のポーズ計算(状態機械)。実エディタと確認ページの両方がこれを使う
+  render.ts            rough.js + SVGでの実際の描画
+  types.ts             ポーズなどの型定義
+  utils.ts             補間などの小さな計算関数
+  autosave.ts          localStorage自動保存
+  download.ts          .txt/.mdダウンロード
+  introDemo.ts         初回イントロデモを再生済みかどうかの保存キー
+  debugPanel.ts        開発ビルドのみで読み込まれるデバッグUI(本番ビルドからは自動で除外される)
+  motionReview/        確認ページ用(state.ts=pose.tsへの合図送り役、filmstrips.ts=図鑑の描画)
+public/textures/       鉛筆テクスチャ画像
+docs/                  初期の仕様書・プロトタイプ(企画の経緯の記録)、モーション図鑑のPNG
 ```
 
 ## 開発
