@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>キャレット棒人間エディタ</title>
+    <title>caretman | 動く棒人間キャレット</title>
+    <meta
+      name="description"
+      content="文字を打つときにチカチカしてる棒の人間のあそび。今日も元気に入力待ち〜"
+    />
   </head>
   <body>
     <div class="page">
@@ -14,8 +18,16 @@
 
       <div class="content">
         <div class="editor-wrap" id="wrap">
-          <div class="editor" id="editor" contenteditable="true" spellcheck="false"></div>
-          <div class="figure" id="figure">
+          <div
+            class="editor"
+            id="editor"
+            contenteditable="true"
+            spellcheck="false"
+            role="textbox"
+            aria-multiline="true"
+            aria-label="本文"
+          ></div>
+          <div class="figure" id="figure" aria-hidden="true">
             <svg viewBox="-20 -44 40 60">
               <defs>
                 <mask id="pencil-mask" maskContentUnits="userSpaceOnUse">
@@ -56,11 +68,18 @@
       </div>
 
       <footer class="footer">
-        <a class="footer-link" href="https://github.com/mt-sumikko/caretman" target="_blank" rel="noopener">caretman</a>
+        <a
+          class="footer-link"
+          href="https://github.com/mt-sumikko/caretman"
+          target="_blank"
+          rel="noopener"
+          aria-label="caretmanのGitHubリポジトリ(別タブで開きます)"
+          >caretman</a
+        >
       </footer>
     </div>
 
-    <div class="autosave-notice" id="autosave-notice" hidden>入力内容はこのブラウザに自動保存されます</div>
+    <div class="autosave-notice" id="autosave-notice" role="status" hidden>入力内容はこのブラウザに自動保存されます</div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>
