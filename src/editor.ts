@@ -47,7 +47,6 @@ export class CaretmanEditor {
   private currentPose: Pose | null = null;
   private introDemoActive = false;
   private introDemoCancelled = false;
-  private caretBeforePointerDown: { node: Node; offset: number } | null = null;
   private onTextChanged: (() => void) | null = null;
 
   constructor(els: CaretmanEditorElements) {
@@ -287,13 +286,6 @@ export class CaretmanEditor {
     return { width, height };
   }
 
-  private getCaretPoint(): { node: Node; offset: number } | null {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return null;
-    const r = sel.getRangeAt(0);
-    return { node: r.startContainer, offset: r.startOffset };
-  }
-
   private hasCharAfterCaret(): boolean {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return false;
@@ -364,8 +356,11 @@ export class CaretmanEditor {
       isHop = true;
       this.state.triggerHop(performance.now(), x - this.lastCaretX);
     }
-    // 歩く向きは、キャレットが動いた向きに合わせる(左へ1文字戻る時は左向きに歩く)
-    if (!isHop && moveKind !== 'jump' && this.lastCaretX !== null) this.state.setWalkDir(x - this.lastCaretX);
+    // キャレットが実際に動いた時だけ歩く。向きは動いた向きに合わせる(左へ1文字戻る時は左向きに歩く)
+    if (this.lastCaretX !== null && Math.abs(x - this.lastCaretX) > 0.5) {
+      this.state.recordMove(performance.now());
+      if (!isHop && moveKind !== 'jump') this.state.setWalkDir(x - this.lastCaretX);
+    }
     this.lastCaretX = x;
 
     // ジャンプ/ホップでの移動はふわっと、通常の移動は素早く
@@ -420,7 +415,6 @@ export class CaretmanEditor {
 
     this.editor.addEventListener('pointerdown', () => {
       this.cancelIntroDemo();
-      this.caretBeforePointerDown = this.getCaretPoint();
     });
 
     this.editor.addEventListener('keydown', (e) => {
@@ -432,8 +426,8 @@ export class CaretmanEditor {
       }
     });
 
-    // キーを離した時は位置合わせだけ行う。「打っている(歩き)」にするのは、実際に文字が変わった時(input)と
-    // キャレットが動いた時(selectionchange)だけにする(Shift単体やCtrl+Cのコピーで歩き出さないように)
+    // キーを離した時は位置合わせだけ行う(Shift単体やCtrl+Cのコピーは「操作」として数えない)。
+    // 歩くかどうかは、位置合わせの中でキャレットが実際に動いたかで決まる
     this.editor.addEventListener('keyup', () => {
       this.updateFigurePosition();
     });
@@ -453,19 +447,13 @@ export class CaretmanEditor {
       this.figure.classList.remove('composing');
       this.state.recordActivity(performance.now());
       // 変換確定では特別なモーションは出さない。変換中から入力中の文字の末尾に立って追従しているので、
-      // 確定しても大きな移動にはならず、そのまま歩き→待機へ移る
+      // 確定してもキャレットは動かず、歩かずにそのまま待機へ移る
       this.updateFigurePosition();
     });
 
+    // クリックも操作として数える。同じ位置へのクリックならキャレットは動かないので歩かず、基本ポーズに戻るだけ
     this.editor.addEventListener('click', () => {
-      const before = this.caretBeforePointerDown;
-      const after = this.getCaretPoint();
-      const moved = !before || !after || before.node !== after.node || before.offset !== after.offset;
-      // 実際にキャレットが移動した時だけ「打っている」を発火する。同じ位置へのクリックは
-      // 基本ポーズへ戻るだけにする(歩行モーションが余計に発火してしまうのを防ぐ)
-      if (moved) {
-        this.state.recordActivity(performance.now());
-      }
+      this.state.recordActivity(performance.now());
       this.updateFigurePosition();
     });
 

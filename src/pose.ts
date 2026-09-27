@@ -66,7 +66,8 @@ export interface ComputePoseOptions {
 }
 
 export class StickmanState {
-  private lastKeyTime: number;
+  private lastKeyTime: number; // 最後に何か操作があった時刻(待機→キャレットのフリ→煽り→着席の経過時間はここから数える)
+  private lastMoveTime = -Infinity; // 最後にキャレットが実際に動いた時刻(歩くのはここから0.3秒だけ)
   private leanPhase = 0; // -1=左足に体重 / 1=右足に体重
   private tauntAmt = 0; // 0=通常の立ち姿 / 1=煽りポーズ
   private armRaiseAmt = 1; // 0=下ろした状態 / 1=上げきった状態
@@ -97,8 +98,15 @@ export class StickmanState {
     this.lastKeyTime = now - (TYPE_HOLD_MS + 1);
   }
 
+  /** 何か操作があった(待機の経過時間を0に戻す)。キャレットが動いていなければ歩きはしない */
   recordActivity(now: number): void {
     this.lastKeyTime = now;
+  }
+
+  /** キャレットが実際に動いた(歩く)。操作があったことにもなる */
+  recordMove(now: number): void {
+    this.lastKeyTime = now;
+    this.lastMoveTime = now;
   }
 
   setComposing(v: boolean): void {
@@ -191,7 +199,8 @@ export class StickmanState {
   computePose(now: number, opts: ComputePoseOptions): Pose {
     const dt = now - this.lastKeyTime;
     const inJumpSeq = this.jumpPhase !== 'none';
-    const isTyping = !inJumpSeq && dt < TYPE_HOLD_MS;
+    // 歩くのはキャレットが実際に動いた時だけ(変換確定のように、操作はあってもキャレットが動かない時は歩かない)
+    const isTyping = !inJumpSeq && now - this.lastMoveTime < TYPE_HOLD_MS;
     const isGivenUp = !inJumpSeq && !isTyping && dt >= LONG_IDLE_MS + GIVE_UP_MS;
     const isLongIdle = !inJumpSeq && !isTyping && !isGivenUp && dt >= LONG_IDLE_MS;
     const isShortIdle = !inJumpSeq && !isTyping && !isGivenUp && !isLongIdle;

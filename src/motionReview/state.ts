@@ -94,7 +94,7 @@ export class DemoStickmanState {
   private drive(now: number, demo: DemoState): void {
     switch (demo) {
       case 'walk':
-        this.state.recordActivity(now); // 打ち続けている
+        this.state.recordMove(now); // 打ち続けている(キャレットが動き続けている)
         return;
       case 'longIdle':
         this.state.recordActivity(now - LONG_IDLE_MS); // 煽りが始まる時間だけ放置された状態に留める(5分で座らないように)
