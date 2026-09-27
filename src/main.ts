@@ -82,58 +82,67 @@ requireEl<HTMLButtonElement>('btn-dl-md').addEventListener('click', () => {
 
 const SHARE_ICON_SVG = `<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M252.31-100Q222-100 201-121q-21-21-21-51.31v-375.38Q180-578 201-599q21-21 51.31-21h72.31q12.76 0 21.38 8.62 8.61 8.61 8.61 21.38T346-568.62q-8.62 8.62-21.38 8.62h-72.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46v375.38q0 4.62 3.85 8.46 3.84 3.85 8.46 3.85h455.38q4.62 0 8.46-3.85 3.85-3.84 3.85-8.46v-375.38q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85h-72.31q-12.76 0-21.38-8.62-8.61-8.61-8.61-21.38t8.61-21.38q8.62-8.62 21.38-8.62h72.31Q738-620 759-599q21 21 21 51.31v375.38Q780-142 759-121q-21 21-51.31 21H252.31Zm206.31-238.62Q450-347.23 450-360v-411.23l-52.92 52.92q-8.93 8.93-20.89 8.81-11.96-.11-21.27-9.42-8.69-9.31-9-21.08-.3-11.77 9-21.07l99.77-99.77q5.62-5.62 11.85-7.93 6.23-2.3 13.46-2.3t13.46 2.3q6.23 2.31 11.85 7.93l99.77 99.77q8.3 8.3 8.5 20.57.19 12.27-8.5 21.58-9.31 9.31-21.39 9.31-12.07 0-21.38-9.31L510-771.23V-360q0 12.77-8.62 21.38Q492.77-330 480-330t-21.38-8.62Z"/></svg>`;
 
-/** SP端末(navigator.share対応時)で共有するテキストファイルを、.txt/.mdダウンロードと同じ命名規則で作る */
+/** SP端末で共有するテキストファイルを、.txt/.mdダウンロードと同じ命名規則で作る */
 function buildShareFile(text: string, ext: 'txt' | 'md', mime: string): File {
   return new File([text], defaultFilename(ext), { type: mime });
+}
+
+/** PCのChrome/Edge等もnavigator.shareを持つため、機能検出だけでなく実機かどうかも見て判定する */
+function isMobileDevice(): boolean {
+  const uaData = (navigator as unknown as { userAgentData?: { mobile?: boolean } }).userAgentData;
+  if (uaData && typeof uaData.mobile === 'boolean') return uaData.mobile;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 {
   const spBtn = requireEl<HTMLButtonElement>('sp-dl-btn');
   const spPanel = requireEl<HTMLElement>('sp-dl-panel');
+  const spTxtRow = requireEl<HTMLButtonElement>('sp-dl-txt');
+  const spMdRow = requireEl<HTMLButtonElement>('sp-dl-md');
 
   // SPで打ったテキストは、ファイルで欲しいというより他のアプリへ転記したいニーズの方が
-  // 強いと想定し、Web Share API(navigator.share)に対応した端末ではOS標準の共有シートへ
-  // 直接渡す。1タップで完結させ、ドロップダウンは出さない。ファイル共有(files)に対応した
-  // 環境ではテキストと.txtファイルを一緒に渡し、受け取り先アプリ側に委ねる
-  if (navigator.share) {
+  // 強いと想定し、実機のSPかつnavigator.share対応端末ではOS標準の共有シートを使う。
+  // .txt/.mdの2択はPCのダウンロードと揃え、file単体で渡す(textと同時に渡すと共有シート側の
+  // 「コピー」操作でクリップボードに同一テキストが二重に入る不具合が確認できたため)
+  const useShare = isMobileDevice() && Boolean(navigator.share);
+
+  if (useShare) {
     spBtn.setAttribute('aria-label', '共有');
-    spBtn.removeAttribute('aria-expanded');
-    spBtn.removeAttribute('aria-controls');
     spBtn.innerHTML = SHARE_ICON_SVG;
-    spPanel.remove();
-
-    spBtn.addEventListener('click', () => {
-      const text = editor.getPlainText();
-      if (!text.trim()) return;
-      const file = buildShareFile(text, 'txt', 'text/plain;charset=utf-8');
-      const shareData: ShareData = navigator.canShare?.({ files: [file] }) ? { text, files: [file] } : { text };
-      navigator.share(shareData).catch(() => {
-        // ユーザーがキャンセルした場合などは何もしない
-      });
-    });
-  } else {
-    // 非対応ブラウザ向けフォールバック: 従来通りダウンロードのドロップダウンを出す
-    const setPanelOpen = (open: boolean): void => {
-      spPanel.hidden = !open;
-      spBtn.setAttribute('aria-expanded', String(open));
-    };
-
-    spBtn.addEventListener('click', () => setPanelOpen(Boolean(spPanel.hidden)));
-    requireEl<HTMLButtonElement>('sp-dl-txt').addEventListener('click', () => {
-      downloadText(editor.getPlainText(), 'txt', 'text/plain;charset=utf-8');
-      setPanelOpen(false);
-    });
-    requireEl<HTMLButtonElement>('sp-dl-md').addEventListener('click', () => {
-      downloadText(editor.getPlainText(), 'md', 'text/markdown;charset=utf-8');
-      setPanelOpen(false);
-    });
-    document.addEventListener('pointerdown', (e) => {
-      if (spPanel.hidden) return;
-      const target = e.target;
-      if (target instanceof Node && (spPanel.contains(target) || spBtn.contains(target))) return;
-      setPanelOpen(false);
-    });
+    spTxtRow.textContent = '.txtを共有';
+    spMdRow.textContent = '.mdを共有';
   }
+
+  const setPanelOpen = (open: boolean): void => {
+    spPanel.hidden = !open;
+    spBtn.setAttribute('aria-expanded', String(open));
+  };
+
+  const handleRow = (ext: 'txt' | 'md', mime: string): void => {
+    const text = editor.getPlainText();
+    if (text.trim()) {
+      if (useShare) {
+        const file = buildShareFile(text, ext, mime);
+        const shareData: ShareData = navigator.canShare?.({ files: [file] }) ? { files: [file] } : { text };
+        navigator.share(shareData).catch(() => {
+          // ユーザーがキャンセルした場合などは何もしない
+        });
+      } else {
+        downloadText(text, ext, mime);
+      }
+    }
+    setPanelOpen(false);
+  };
+
+  spBtn.addEventListener('click', () => setPanelOpen(Boolean(spPanel.hidden)));
+  spTxtRow.addEventListener('click', () => handleRow('txt', 'text/plain;charset=utf-8'));
+  spMdRow.addEventListener('click', () => handleRow('md', 'text/markdown;charset=utf-8'));
+  document.addEventListener('pointerdown', (e) => {
+    if (spPanel.hidden) return;
+    const target = e.target;
+    if (target instanceof Node && (spPanel.contains(target) || spBtn.contains(target))) return;
+    setPanelOpen(false);
+  });
 }
 
 // デバッグパネルは開発ビルド(npm run dev)でのみ生成する。import.meta.env.DEVは本番ビルドで
