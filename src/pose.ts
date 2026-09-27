@@ -569,20 +569,21 @@ export class StickmanState {
       const swayFootR = lerpPoint(neutral.legR, tauntFootR, t);
 
       // あぐら風: 膝を左右に大きく開き、足先は逆に体の中心近くまで寄せる(手描き参考画像に合わせた)
-      const sitHip = { x: neutral.hip.x, y: neutral.hip.y + 16 };
-      const sitArmL = { x: -10, y: 4 };
-      const sitArmR = { x: 10, y: 4 };
-      const sitKneeL = { x: -15, y: 3 };
-      const sitKneeR = { x: 15, y: 3 };
-      const sitFootL = { x: -3, y: 9 };
-      const sitFootR = { x: 3, y: 9 };
+      // 組んだ足と腰の線が地面(y=8)より沈まないよう、線の太さぶん上に置いている
+      const sitHip = { x: neutral.hip.x, y: neutral.hip.y + 14 };
+      const sitArmL = { x: -10, y: 2 };
+      const sitArmR = { x: 10, y: 2 };
+      const sitKneeL = { x: -15, y: 1 };
+      const sitKneeR = { x: 15, y: 1 };
+      const sitFootL = { x: -3, y: 7 };
+      const sitFootR = { x: 3, y: 7 };
 
       hip.x = lerp(swayHip.x, sitHip.x, this.sitAmt);
       hip.y = lerp(swayHip.y, sitHip.y, this.sitAmt);
       head.cx = lerp(swayHeadCx, neutral.head.cx, this.sitAmt);
-      head.cy += lerp(swayDip, 13, this.sitAmt);
+      head.cy += lerp(swayDip, 11, this.sitAmt);
       neck.x = lerp(swayNeckX, neutral.neck.x, this.sitAmt);
-      neck.y += lerp(swayDip, 13, this.sitAmt);
+      neck.y += lerp(swayDip, 11, this.sitAmt);
       armL = lerpPoint(swayArmL, sitArmL, this.sitAmt);
       armR = lerpPoint(swayArmR, sitArmR, this.sitAmt);
       kneeL = lerpPoint(swayKneeL, sitKneeL, this.sitAmt);
