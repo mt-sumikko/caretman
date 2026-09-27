@@ -30,6 +30,7 @@ export class CaretmanEditor {
   private currentPose: Pose | null = null;
   private introDemoActive = false;
   private introDemoCancelled = false;
+  private caretBeforePointerDown: { node: Node; offset: number } | null = null;
 
   constructor(els: CaretmanEditorElements) {
     this.editor = els.editor;
@@ -201,6 +202,13 @@ export class CaretmanEditor {
     return { width, height };
   }
 
+  private getCaretPoint(): { node: Node; offset: number } | null {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const r = sel.getRangeAt(0);
+    return { node: r.startContainer, offset: r.startOffset };
+  }
+
   private hasCharAfterCaret(): boolean {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return false;
@@ -280,6 +288,7 @@ export class CaretmanEditor {
 
     this.editor.addEventListener('pointerdown', () => {
       this.cancelIntroDemo();
+      this.caretBeforePointerDown = this.getCaretPoint();
     });
 
     this.editor.addEventListener('keydown', (e) => {
@@ -313,7 +322,14 @@ export class CaretmanEditor {
     });
 
     this.editor.addEventListener('click', () => {
-      this.state.recordActivity(performance.now());
+      const before = this.caretBeforePointerDown;
+      const after = this.getCaretPoint();
+      const moved = !before || !after || before.node !== after.node || before.offset !== after.offset;
+      // 実際にキャレットが移動した時だけ「打っている」を発火する。同じ位置へのクリックは
+      // 基本ポーズへ戻るだけにする(歩行モーションが余計に発火してしまうのを防ぐ)
+      if (moved) {
+        this.state.recordActivity(performance.now());
+      }
       this.updateFigurePosition();
     });
 
