@@ -20,7 +20,7 @@ const FIGURE_RATIO = 30 / 44; // 幅:高さの比率(元デザインを踏襲)
 const BASE_HEIGHT_MULT = 1.35; // フォントサイズに対する基準倍率(scale=1の時)
 // 立ちポーズの足位置(viewBox上のy=8)は、figureボックスの下端(y=16)より上にある。
 // その分だけ下にずらして、足先を文字のベースライン(=ボックス下端に合わせているcaret位置)へ寄せる
-const FOOT_BASELINE_OFFSET_RATIO = 2 / 60;
+const FOOT_BASELINE_OFFSET_RATIO = 3 / 60;
 
 export interface CaretmanEditorElements {
   editor: HTMLElement;
