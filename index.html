@@ -30,7 +30,30 @@
           <div class="figure" id="figure" aria-hidden="true">
             <svg viewBox="-20 -44 40 60">
               <defs>
-                <mask id="pencil-mask" maskContentUnits="userSpaceOnUse">
+                <!--
+                  maskUnits/x/y/width/heightを明示して固定範囲にしている。
+                  これを指定しないとmaskUnitsはデフォルトのobjectBoundingBox(=マスク対象要素
+                  である#rough-groupの「現在の描画内容の外接ボックス」基準)になり、ジャンプ中
+                  など棒人間の姿勢が大きく動いて外接ボックスが変化すると、マスク範囲が動いた分
+                  だけ頭などがマスク範囲からはみ出て見えなくなる不具合が起きていた。
+                  範囲はviewBox(-20 -44 40 60)よりひとまわり広く取ってある。ジャンプの頂点では
+                  頭がy=-44のviewBox上端よりさらに上(y≒-52)まで上がる(.figure svgにoverflow:
+                  visibleを設定しているのでviewBox外への描画自体は元々想定内)ため、それも覆える
+                  余白が要る。中に白いrectを敷いているのは、鉛筆テクスチャ画像(pencil-grain-
+                  placeholder.png)がこの元の40x60の範囲にしか置かれていないため。maskは絵のない
+                  部分(=透明)を「隠す」側に倒すので、rectを敷かないと画像の外に出た瞬間また
+                  見えなくなってしまう。rectで「テクスチャの外側は無地で常に見える」を保証している。
+                -->
+                <mask
+                  id="pencil-mask"
+                  maskUnits="userSpaceOnUse"
+                  x="-30"
+                  y="-70"
+                  width="60"
+                  height="100"
+                  maskContentUnits="userSpaceOnUse"
+                >
+                  <rect x="-30" y="-70" width="60" height="100" fill="#fff" />
                   <image
                     href="/textures/pencil-grain-placeholder.png"
                     x="-20"

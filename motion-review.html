@@ -19,7 +19,17 @@
           <div class="figure" id="figure">
             <svg viewBox="-20 -44 40 60">
               <defs>
-                <mask id="pencil-mask" maskContentUnits="userSpaceOnUse">
+                <!-- 固定範囲・白rectを敷いている理由はindex.htmlの同じ箇所のコメント参照 -->
+                <mask
+                  id="pencil-mask"
+                  maskUnits="userSpaceOnUse"
+                  x="-30"
+                  y="-70"
+                  width="60"
+                  height="100"
+                  maskContentUnits="userSpaceOnUse"
+                >
+                  <rect x="-30" y="-70" width="60" height="100" fill="#fff" />
                   <image
                     href="/textures/pencil-grain-placeholder.png"
                     x="-20"
