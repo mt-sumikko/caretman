@@ -5,10 +5,10 @@ import { renderFilmstrips } from './filmstrips';
 
 /**
  * このファイルの役割(ざっくり):
- * motion-review.html(本番のエディタとは別の、モーション確認専用ページ)の起動処理。
- * 実際の入力欄はなく、ボタンを押すと「打っている」「選択中」などの状態を強制的に
- * 切り替えられるようになっていて、各モーションの見た目を単体で確認・調整するための
- * 開発者向けツール。本番ビルドの本体(index.html)からは読み込まれない。
+ * motion-review.html(モーション確認専用ページ)の起動処理。
+ * 実際の入力欄はなく、ボタンを押すと「打っている」「選択中」などの状態に切り替えて、
+ * 各モーションの見た目を単体で確認・調整するための開発者向けツール。
+ * ポーズの計算は実エディタと同じsrc/pose.tsを使っている(state.tsがそれを操縦している)。
  */
 
 function requireEl<T extends Element>(id: string): T {
@@ -79,12 +79,12 @@ let demoState: DemoState = 'shortIdle';
 const state = new DemoStickmanState();
 state.restart(performance.now());
 
-for (const { value, label, note } of DEMO_STATES) {
+for (const { value, label } of DEMO_STATES) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'motion-pill';
   btn.dataset.value = value;
-  btn.innerHTML = note ? `${label}<span class="note">${note}</span>` : label;
+  btn.textContent = label;
   if (value === demoState) btn.classList.add('active');
   btn.addEventListener('click', () => {
     demoState = value;

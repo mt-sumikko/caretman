@@ -159,13 +159,6 @@ h1 {
   opacity: 1;
 }
 
-.motion-pill .note {
-  display: block;
-  font-size: 10px;
-  opacity: 0.8;
-  margin-top: 2px;
-}
-
 /* ---- モーション図鑑(コマ送り) ---- */
 .gallery {
   display: flex;

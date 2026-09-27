@@ -14,12 +14,12 @@ import type { Point, Pose, JumpPhase } from './types';
  * 実際の画面サイズへの変換(フォントサイズに応じた拡大)はeditor.ts側で行う。
  */
 
-const LONG_IDLE_MS = 10000;
+export const LONG_IDLE_MS = 10000; // これだけ何も操作がないと「長い待機(煽り)」
 const CARET_POSE_DELAY_MS = 3000; // 打つ/歩行の手を止めてから、キャレットのフリ(腕上げ)を始めるまでの間(基本ポーズで繋ぐ)
 const SWING_PERIOD_MS = 1800; // 長い待機(煽り)で左右に体重移動する1往復の時間。せわしなさ=ウザさ
 const TAUNT_SPEED = 0.08; // 通常の立ち姿⇔煽りポーズ(腕を真横・広いスタンス)の切り替え速度
 const GIVE_UP_MS = 5 * 60 * 1000; // 5分煽ったら諦めて座る
-const TYPE_HOLD_MS = 300;
+export const TYPE_HOLD_MS = 300; // 最後の入力・移動からこの間は「打っている(歩き)」
 const ANTICIPATE_DURATION = 130;
 const JUMP_DURATION = 350;
 const BRACE_DURATION = 220;
@@ -127,6 +127,10 @@ export class StickmanState {
 
   isPasteActive(): boolean {
     return this.pasteActive;
+  }
+
+  isHopActive(): boolean {
+    return this.hopActive;
   }
 
   triggerJumpAnticipate(now: number): void {
