@@ -23,7 +23,7 @@ const TYPE_HOLD_MS = 300;
 const ANTICIPATE_DURATION = 130;
 const JUMP_DURATION = 350;
 const BRACE_DURATION = 220;
-const WALK_PHASE_MS = 140; // 歩行の4コマ切り替え間隔(常に一定。速さは移動そのものの速さで表現する)
+const WALK_CYCLE_MS = 560; // 歩行の1周期(左右1歩ずつ)。常に一定で、進む速さは移動そのものの速さで表現する
 const THROW_DURATION_BASE = 380; // 溜め→振り抜き→余韻→戻り、の一連を見せられる長さ
 const THROW_DURATION_MAX = 650;
 const THROW_DURATION_PER_CHAR = 12; // 削除した文字数が多いほど、放り投げの余韻を長くする
@@ -440,55 +440,45 @@ export class StickmanState {
       }
       branchElbowBend = lerp(DEFAULT_ELBOW_BEND, 0.3, a); // 後ろへ伸ばす腕はまっすぐに
     } else if (isTyping) {
-      // 真横から見た歩行サイクル(4コマ): 接地(前)→振り出し中→接地(反転)→振り出し中→...
-      // ※ 前後2コマの単純な入れ替えだと左右の脚が同じ形で描画されるため絵が変わらないバグを踏んだので、
-      //   間に「片方の脚が浮いて振り出し中」の非対称なコマを挟んだ4コマ構成にしている
-      const front = { x: 9, y: 8.4 };
-      const frontKnee = { x: 4, y: 3 };
-      const back = { x: -10.2, y: 7.6 };
-      const backKnee = { x: -3, y: -2 };
-      const swingFoot = { x: 0, y: 3 }; // 振り出し中、膝を高く曲げて浮かせた脚
-      const swingKnee = { x: 2, y: -7 };
-      const plantFoot = { x: 0, y: 8 }; // 振り出し中、支えてる方の脚(腰の真下でほぼ直立)
-      const plantKnee = { x: 0, y: 3 };
-      const armFwd = { x: -7.4, y: -15.9 };
-      const armBack = { x: 10, y: -18.5 };
-      const bounce = 1.6;
-      const phase = Math.floor(now / WALK_PHASE_MS) % 4;
-
-      if (phase === 0) {
-        footL = front;
-        kneeL = frontKnee;
-        footR = back;
-        kneeR = backKnee;
-        armL = armBack;
-        armR = armFwd;
-      } else if (phase === 1) {
-        footL = swingFoot;
-        kneeL = swingKnee;
-        footR = plantFoot;
-        kneeR = plantKnee;
-        armL = { x: neutral.armL.x, y: neutral.armL.y };
-        armR = { x: neutral.armR.x, y: neutral.armR.y };
-      } else if (phase === 2) {
-        footL = back;
-        kneeL = backKnee;
-        footR = front;
-        kneeR = frontKnee;
-        armL = armFwd;
-        armR = armBack;
-      } else {
-        footL = plantFoot;
-        kneeL = plantKnee;
-        footR = swingFoot;
-        kneeR = swingKnee;
-        armL = { x: neutral.armL.x, y: neutral.armL.y };
-        armR = { x: neutral.armR.x, y: neutral.armR.y };
-      }
-      const bounceAmt = phase % 2 === 1 ? bounce : bounce * 0.3; // 振り出し中の方が体は高く上がる
-      head.cy -= bounceAmt;
-      neck.y -= bounceAmt;
-      hip.y -= bounceAmt;
+      // 真横から見た歩行サイクル(画面右へ歩く)。コマを切り替えるのではなく、位相(0〜2π)を連続的に回してなめらかに動かす。
+      // 左右の脚は半周期ずらし、腕は同じ側の脚と逆向きに振る
+      const phase = ((now % WALK_CYCLE_MS) / WALK_CYCLE_MS) * Math.PI * 2;
+      const spread = Math.abs(Math.sin(phase)); // 両脚の開き具合(1=前後に一番開いた瞬間)
+      const bob = spread * 1.5 - 0.5; // 脚が開いた瞬間に腰が沈み、片脚が真下に来た瞬間に一番高くなる
+      hip.x += 0.5;
+      hip.y += bob;
+      neck.x += 1.5; // 進行方向へほんの少し前傾
+      neck.y += bob;
+      head.cx += 2;
+      head.cy += bob;
+      const legAt = (ph: number): { foot: Point; knee: Point } => {
+        // 足が前へ動いている間(cos>0)は宙に浮かせて振り出し、後ろへ動いている間は地面について体を運ぶ
+        const lift = Math.max(0, Math.cos(ph)) ** 2;
+        const foot = { x: hip.x + Math.sin(ph) * 9, y: neutral.legL.y - lift * 5 };
+        const mid = lerpPoint(hip, foot, 0.5);
+        // 膝は常に少し進行方向へ曲げ、振り出し中は大きく前へ出す
+        return { foot, knee: { x: mid.x + 1 + lift * 4, y: mid.y - lift * 2.5 } };
+      };
+      const legLPose = legAt(phase);
+      const legRPose = legAt(phase + Math.PI);
+      footL = legLPose.foot;
+      kneeL = legLPose.knee;
+      footR = legRPose.foot;
+      kneeR = legRPose.knee;
+      const shoulder = { x: neck.x + (hip.x - neck.x) * 0.3, y: neck.y + (hip.y - neck.y) * 0.3 }; // render.tsの肩と同じ位置
+      // 腕は肩から前後に約30°ずつ振る。前に振った腕ほど肘を曲げて前腕を持ち上げ、後ろの腕はほぼまっすぐにする
+      const armAt = (ph: number): { hand: Point; elbow: Point } => {
+        const upper = -Math.sin(ph) * 0.55; // 同じ側の脚と逆向き(正=前)
+        const fore = upper + 0.5 + Math.max(0, -Math.sin(ph)) * 0.7; // 肘は常に少し曲げ、脚と腕が重なる瞬間も前腕が見えるように
+        const elbow = { x: shoulder.x + Math.sin(upper) * 7.5, y: shoulder.y + Math.cos(upper) * 7.5 };
+        return { elbow, hand: { x: elbow.x + Math.sin(fore) * 7.5, y: elbow.y + Math.cos(fore) * 7.5 } };
+      };
+      const armLPose = armAt(phase);
+      const armRPose = armAt(phase + Math.PI);
+      armL = armLPose.hand;
+      elbowLOverride = armLPose.elbow;
+      armR = armRPose.hand;
+      elbowROverride = armRPose.elbow;
     } else if (isShortIdle) {
       // 通常時: 腕を上げてキャレットのフリをする(上げ直しは0.2秒くらいで)
       const downArmL = { x: neutral.armL.x, y: neutral.armL.y };
