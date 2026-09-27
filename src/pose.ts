@@ -304,7 +304,7 @@ export class StickmanState {
       footR = { x: neutral.legR.x, y: neutral.legR.y };
     } else if (this.jumpPhase === 'arc') {
       // 空中: 膝を大きく曲げて足を体の下まで引き上げ、地面との間との距離を脚の長さではなく
-      // 高さ(jumpY)そのもので見せる。腕は逆に、頂点に向かって下げ切っていく
+      // 高さ(jumpY)そのもので見せる。腕は頂点に向かって振り上げていく
       const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
       const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
       const tuckKneeL = { x: -5, y: -7 };
@@ -315,12 +315,12 @@ export class StickmanState {
       kneeR = { x: lerp(standKneeR.x, tuckKneeR.x, arcTuckAmt), y: lerp(standKneeR.y, tuckKneeR.y, arcTuckAmt) };
       footL = { x: lerp(neutral.legL.x, tuckFootL.x, arcTuckAmt), y: lerp(neutral.legL.y, tuckFootL.y, arcTuckAmt) };
       footR = { x: lerp(neutral.legR.x, tuckFootR.x, arcTuckAmt), y: lerp(neutral.legR.y, tuckFootR.y, arcTuckAmt) };
-      // 肩(y≒-20.6)の真下に、腕の長さ(約16)を保ったまま垂らした位置。体と一緒にjumpYで持ち上がるので、
-      // ここは体に対する相対位置として考える(大きくすると腕が地面まで伸びて脚のように見えてしまう)
-      const hangArmL = { x: -4, y: -5 };
-      const hangArmR = { x: 4, y: -5 };
-      armL = { x: lerp(neutral.armL.x, hangArmL.x, arcTuckAmt), y: lerp(neutral.armL.y, hangArmL.y, arcTuckAmt) };
-      armR = { x: lerp(neutral.armR.x, hangArmR.x, arcTuckAmt), y: lerp(neutral.armR.y, hangArmR.y, arcTuckAmt) };
+      // 肩(y≒-20.6)から斜め上へ、腕の長さ(約16)を保ったまま頭の横にV字で振り上げた位置。
+      // 体と一緒にjumpYで持ち上がるので、ここは体に対する相対位置として考える(二重に見込むと腕が伸びすぎる)
+      const raiseArmL = { x: -11, y: -32 };
+      const raiseArmR = { x: 11, y: -32 };
+      armL = { x: lerp(neutral.armL.x, raiseArmL.x, arcTuckAmt), y: lerp(neutral.armL.y, raiseArmL.y, arcTuckAmt) };
+      armR = { x: lerp(neutral.armR.x, raiseArmR.x, arcTuckAmt), y: lerp(neutral.armR.y, raiseArmR.y, arcTuckAmt) };
     } else if (this.throwActive) {
       // 両手を画面左に寄せて掴み、片足を前に踏み込みながら両手ごと画面右へ振り抜く
       const grabL = { x: -15, y: -12 };
