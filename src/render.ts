@@ -18,7 +18,7 @@ const JITTER_AMOUNT = 0.5;
 // rough.js: 比較検証ツール(5倍スケール)で調整した値を、このプロトタイプの座標系(1/5)に換算した値
 const ROUGH_ROUGHNESS = 0.34;
 const ROUGH_BOWING = 0.3;
-const ROUGH_STROKE_WIDTH = 1.3;
+const ROUGH_STROKE_WIDTH = 2; // 1.3だと文字サイズまで縮んだ時に1px未満になって薄いグレーに見えたので、本文の文字の線の太さに合わせた
 const ROUGH_SEED = 7; // 固定シード(line boilとの二重ゆらぎを避けるため、毎ティックは変えない)
 
 export interface RendererElements {

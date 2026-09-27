@@ -73,6 +73,9 @@
                   鉛筆テクスチャ画像もこの範囲全体に敷く(縦横比を保ったまま覆うslice)。画像の範囲が
                   狭いと、その外側は「テクスチャなし=真っ黒な線」になり、ジャンプで頭が境目をまたいだ時に
                   濃さの差が横線のように見えてしまうため。本番のテクスチャ画像は横3:縦5の比率で作るとよい。
+                  白いrectの上に画像をopacity 0.5で重ねているのは、ざらつき(線が透ける部分)の効き具合を半分に
+                  抑えるため。そのままだと文字サイズくらいまで縮んだ時に線全体が薄いグレーに見えてしまう。
+                  もっと濃く/かすれさせたい時はこのopacityを上げ下げする(1=画像そのまま、0=ざらつきなし)。
                 -->
                 <mask
                   id="pencil-mask"
@@ -83,6 +86,7 @@
                   height="100"
                   maskContentUnits="userSpaceOnUse"
                 >
+                  <rect x="-30" y="-70" width="60" height="100" fill="#fff" />
                   <image
                     href="/textures/pencil-grain-placeholder.png"
                     x="-30"
@@ -90,6 +94,7 @@
                     width="60"
                     height="100"
                     preserveAspectRatio="xMidYMid slice"
+                    opacity="0.5"
                   />
                 </mask>
               </defs>

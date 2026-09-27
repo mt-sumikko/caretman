@@ -283,7 +283,7 @@ body {
 .stroke {
   fill: none;
   stroke: var(--ink);
-  stroke-width: 4;
+  stroke-width: 2; /* rough.jsが使えない時の予備の描画。render.tsのROUGH_STROKE_WIDTHと揃える */
   stroke-linecap: round;
   stroke-linejoin: round;
 }
