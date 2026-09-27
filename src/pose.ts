@@ -54,6 +54,9 @@ const neutral = {
   legL: { x: -6, y: 8 },
   legR: { x: 6, y: 8 },
 };
+// 立ち姿の膝(腰と足先のちょうど中間=まっすぐ伸びた脚)
+const standKneeL: Point = lerpPoint(neutral.hip, neutral.legL, 0.5);
+const standKneeR: Point = lerpPoint(neutral.hip, neutral.legR, 0.5);
 
 export interface ComputePoseOptions {
   /** キャレットの後ろに文字があるか(=文字の間にいるか) */
@@ -314,39 +317,35 @@ export class StickmanState {
     if (this.jumpPhase === 'anticipate' || this.jumpPhase === 'brace') {
       // 助走の踏み込み/着地の踏ん張り: 足は地面(neutral)に固定したまま、
       // 膝を曲げて腰と頭が一緒に沈み込む(ニュートラルから正しくブレンド)
-      const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
-      const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
       const crouchKneeL = { x: -9, y: -1 };
       const crouchKneeR = { x: 9, y: -1 };
 
       hip.y += crouchAmt * 6;
       head.cy += crouchAmt * 6;
       neck.y += crouchAmt * 6;
-      armL = { x: lerp(neutral.armL.x, neutral.armL.x - 4, crouchAmt), y: lerp(neutral.armL.y, neutral.armL.y + 4, crouchAmt) };
-      armR = { x: lerp(neutral.armR.x, neutral.armR.x + 4, crouchAmt), y: lerp(neutral.armR.y, neutral.armR.y + 4, crouchAmt) };
-      kneeL = { x: lerp(standKneeL.x, crouchKneeL.x, crouchAmt), y: lerp(standKneeL.y, crouchKneeL.y, crouchAmt) };
-      kneeR = { x: lerp(standKneeR.x, crouchKneeR.x, crouchAmt), y: lerp(standKneeR.y, crouchKneeR.y, crouchAmt) };
+      armL = lerpPoint(neutral.armL, { x: neutral.armL.x - 4, y: neutral.armL.y + 4 }, crouchAmt);
+      armR = lerpPoint(neutral.armR, { x: neutral.armR.x + 4, y: neutral.armR.y + 4 }, crouchAmt);
+      kneeL = lerpPoint(standKneeL, crouchKneeL, crouchAmt);
+      kneeR = lerpPoint(standKneeR, crouchKneeR, crouchAmt);
       footL = { x: neutral.legL.x, y: neutral.legL.y }; // 足は地面に固定(踏ん張り)
       footR = { x: neutral.legR.x, y: neutral.legR.y };
     } else if (this.jumpPhase === 'arc') {
       // 空中: 膝を大きく曲げて足を体の下まで引き上げ、地面との間との距離を脚の長さではなく
       // 高さ(jumpY)そのもので見せる。腕は頂点に向かって振り上げていく
-      const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
-      const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
       const tuckKneeL = { x: -5, y: -7 };
       const tuckKneeR = { x: 5, y: -7 };
       const tuckFootL = { x: -3, y: -2 };
       const tuckFootR = { x: 3, y: -2 };
-      kneeL = { x: lerp(standKneeL.x, tuckKneeL.x, arcTuckAmt), y: lerp(standKneeL.y, tuckKneeL.y, arcTuckAmt) };
-      kneeR = { x: lerp(standKneeR.x, tuckKneeR.x, arcTuckAmt), y: lerp(standKneeR.y, tuckKneeR.y, arcTuckAmt) };
-      footL = { x: lerp(neutral.legL.x, tuckFootL.x, arcTuckAmt), y: lerp(neutral.legL.y, tuckFootL.y, arcTuckAmt) };
-      footR = { x: lerp(neutral.legR.x, tuckFootR.x, arcTuckAmt), y: lerp(neutral.legR.y, tuckFootR.y, arcTuckAmt) };
+      kneeL = lerpPoint(standKneeL, tuckKneeL, arcTuckAmt);
+      kneeR = lerpPoint(standKneeR, tuckKneeR, arcTuckAmt);
+      footL = lerpPoint(neutral.legL, tuckFootL, arcTuckAmt);
+      footR = lerpPoint(neutral.legR, tuckFootR, arcTuckAmt);
       // 肩(y≒-20.6)から斜め上へ、腕の長さ(約16)を保ったまま頭の横にV字で振り上げた位置。
       // 体と一緒にjumpYで持ち上がるので、ここは体に対する相対位置として考える(二重に見込むと腕が伸びすぎる)
       const raiseArmL = { x: -11, y: -32 };
       const raiseArmR = { x: 11, y: -32 };
-      armL = { x: lerp(neutral.armL.x, raiseArmL.x, arcTuckAmt), y: lerp(neutral.armL.y, raiseArmL.y, arcTuckAmt) };
-      armR = { x: lerp(neutral.armR.x, raiseArmR.x, arcTuckAmt), y: lerp(neutral.armR.y, raiseArmR.y, arcTuckAmt) };
+      armL = lerpPoint(neutral.armL, raiseArmL, arcTuckAmt);
+      armR = lerpPoint(neutral.armR, raiseArmR, arcTuckAmt);
     } else if (this.throwActive) {
       // 放り投げ(棒人間は左向き=消した文字を背中側の画面右へ投げ捨てる):
       // ①溜め: 左足を大きく踏み込んで低く沈み、前屈みで足元から両手で掬うように掴む
@@ -503,10 +502,10 @@ export class StickmanState {
       const downArmR = { x: neutral.armR.x, y: neutral.armR.y };
       const upArmL = { x: -4, y: -42 };
       const upArmR = { x: 4, y: -42 };
-      armL = { x: lerp(downArmL.x, upArmL.x, this.armRaiseAmt), y: lerp(downArmL.y, upArmL.y, this.armRaiseAmt) };
-      armR = { x: lerp(downArmR.x, upArmR.x, this.armRaiseAmt), y: lerp(downArmR.y, upArmR.y, this.armRaiseAmt) };
-      kneeL = { x: neutral.legL.x / 2, y: (hip.y + neutral.legL.y) / 2 };
-      kneeR = { x: neutral.legR.x / 2, y: (hip.y + neutral.legR.y) / 2 };
+      armL = lerpPoint(downArmL, upArmL, this.armRaiseAmt);
+      armR = lerpPoint(downArmR, upArmR, this.armRaiseAmt);
+      kneeL = { ...standKneeL }; // この後squashで書き換えるので、共通の定数を直接使わずコピーする
+      kneeR = { ...standKneeR };
       footL = { x: neutral.legL.x, y: neutral.legL.y };
       footR = { x: neutral.legR.x, y: neutral.legR.y };
 
@@ -543,8 +542,8 @@ export class StickmanState {
       const swayDip = dip * t;
       const swayArmL = lerpPoint(neutral.armL, tauntArmL, t);
       const swayArmR = lerpPoint(neutral.armR, tauntArmR, t);
-      const swayKneeL = lerpPoint({ x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 }, tauntKneeL, t);
-      const swayKneeR = lerpPoint({ x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 }, tauntKneeR, t);
+      const swayKneeL = lerpPoint(standKneeL, tauntKneeL, t);
+      const swayKneeR = lerpPoint(standKneeR, tauntKneeR, t);
       const swayFootL = lerpPoint(neutral.legL, tauntFootL, t);
       const swayFootR = lerpPoint(neutral.legR, tauntFootR, t);
 
@@ -563,12 +562,12 @@ export class StickmanState {
       head.cy += lerp(swayDip, 13, this.sitAmt);
       neck.x = lerp(swayNeckX, neutral.neck.x, this.sitAmt);
       neck.y += lerp(swayDip, 13, this.sitAmt);
-      armL = { x: lerp(swayArmL.x, sitArmL.x, this.sitAmt), y: lerp(swayArmL.y, sitArmL.y, this.sitAmt) };
-      armR = { x: lerp(swayArmR.x, sitArmR.x, this.sitAmt), y: lerp(swayArmR.y, sitArmR.y, this.sitAmt) };
-      kneeL = { x: lerp(swayKneeL.x, sitKneeL.x, this.sitAmt), y: lerp(swayKneeL.y, sitKneeL.y, this.sitAmt) };
-      kneeR = { x: lerp(swayKneeR.x, sitKneeR.x, this.sitAmt), y: lerp(swayKneeR.y, sitKneeR.y, this.sitAmt) };
-      footL = { x: lerp(swayFootL.x, sitFootL.x, this.sitAmt), y: lerp(swayFootL.y, sitFootL.y, this.sitAmt) };
-      footR = { x: lerp(swayFootR.x, sitFootR.x, this.sitAmt), y: lerp(swayFootR.y, sitFootR.y, this.sitAmt) };
+      armL = lerpPoint(swayArmL, sitArmL, this.sitAmt);
+      armR = lerpPoint(swayArmR, sitArmR, this.sitAmt);
+      kneeL = lerpPoint(swayKneeL, sitKneeL, this.sitAmt);
+      kneeR = lerpPoint(swayKneeR, sitKneeR, this.sitAmt);
+      footL = lerpPoint(swayFootL, sitFootL, this.sitAmt);
+      footR = lerpPoint(swayFootR, sitFootR, this.sitAmt);
     }
 
     // ジャンプの跳ね上がり(jumpY)・複数文字ホップ(hopY)はどの状態の上にも重ねる。
