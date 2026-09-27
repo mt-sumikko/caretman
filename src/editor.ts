@@ -234,9 +234,11 @@ export class CaretmanEditor {
     // キャレットが置かれるより先にfocusイベントが来るので、その瞬間の「外の位置」は測らない
     if (!this.editor.contains(liveRange.startContainer)) return null;
     const range = liveRange.cloneRange();
-    // IME変換中のブラウザは、選択範囲を「入力中の文字列の末尾」と「入力中の文字列全体」の間で行き来させる。
-    // 通常どおり範囲の先頭を測ると末尾⇔先頭を往復して大きく動いたように見えるため、変換中は末尾で測る
-    range.collapse(!this.state.isComposing());
+    // IME変換中は、キャレットが入力中の文字の末尾にある時だけ測る。変換中のブラウザは選択範囲を
+    // 「入力中の文字列全体」や「変換中の文節」に切り替えるが、それを測ると文節ごとに位置が飛んで往復して
+    // しまうため、その間は位置を更新せずその場で待つ(確定した時に、縮んだ/伸びたぶんだけ動く)
+    if (this.state.isComposing() && !liveRange.collapsed) return null;
+    range.collapse(true);
     this.moveIntoLine(range);
     const rects = range.getClientRects();
     if (rects.length > 0) return rects[0];
@@ -349,7 +351,6 @@ export class CaretmanEditor {
       moveKind !== 'jump' &&
       !this.state.isThrowActive() &&
       !this.state.isPasteActive() && // 貼り付けで大きく動くのは貼り付けポーズで表現する
-      !this.state.isComposing() && // 変換中の文字数の増減・文節の移動は「打っている」の一部なので歩きのまま
       this.lastCaretX !== null &&
       Math.abs(x - this.lastCaretX) >= hopDistanceThreshold
     ) {
@@ -446,8 +447,8 @@ export class CaretmanEditor {
       this.state.setComposing(false);
       this.figure.classList.remove('composing');
       this.state.recordActivity(performance.now());
-      // 変換確定では特別なモーションは出さない。変換中から入力中の文字の末尾に立って追従しているので、
-      // 確定してもキャレットは動かず、歩かずにそのまま待機へ移る
+      // 変換確定専用のモーションはない。変換候補を選んでいる間はその場で待っているので、確定で文字数が
+      // 変わっていれば、ここでの位置合わせで距離に応じて歩き/ホップする(変わらなければ動かず待機へ)
       this.updateFigurePosition();
     });
 
