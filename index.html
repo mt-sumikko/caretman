@@ -50,39 +50,6 @@
       </button>
     </div>
 
-    <button class="debug-toggle" id="debug-toggle" type="button" aria-expanded="false" aria-controls="debug-panel">
-      デバッグ
-    </button>
-    <aside class="debug-panel" id="debug-panel" hidden>
-      <div class="debug-row">
-        <span class="debug-label">状態</span>
-        <span id="debug-status">-</span>
-      </div>
-      <div class="debug-row">
-        <label for="debug-scale">サイズ</label>
-        <input type="range" id="debug-scale" min="0.3" max="1.6" step="0.05" value="1.1" />
-        <output id="debug-scale-out">1.10</output>
-      </div>
-      <div class="debug-row">
-        <label for="debug-gap">距離(横)</label>
-        <input type="range" id="debug-gap" min="0" max="1.2" step="0.05" value="0.4" />
-        <output id="debug-gap-out">0.40</output>
-      </div>
-      <div class="debug-row">
-        <label for="debug-texture">線の質感(rough.js+鉛筆テクスチャ)</label>
-        <input type="checkbox" id="debug-texture" checked />
-      </div>
-      <div class="debug-row">
-        <button class="debug-btn" id="debug-giveup" type="button">5秒後に「5分経過」状態にする</button>
-      </div>
-      <div class="debug-row">
-        <button class="debug-btn" id="debug-reset-intro" type="button">初回デモをリセットして再読み込み</button>
-      </div>
-      <div class="debug-row">
-        <a class="debug-link" href="/motion-review.html" target="_blank" rel="noopener">モーション確認ページを開く &#8599;</a>
-      </div>
-    </aside>
-
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

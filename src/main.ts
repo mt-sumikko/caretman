@@ -1,7 +1,5 @@
 import './style.css';
-import './debug.css';
 import { CaretmanEditor } from './editor';
-import { DebugPanel } from './debugPanel';
 import { downloadText } from './download';
 import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
 
@@ -48,18 +46,11 @@ requireEl<HTMLButtonElement>('btn-dl-md').addEventListener('click', () => {
   downloadText(editor.getPlainText(), 'md', 'text/markdown;charset=utf-8');
 });
 
-new DebugPanel(
-  {
-    toggleButton: requireEl('debug-toggle'),
-    panel: requireEl('debug-panel'),
-    statusEl: requireEl('debug-status'),
-    scaleInput: requireEl('debug-scale'),
-    scaleOut: requireEl('debug-scale-out'),
-    gapInput: requireEl('debug-gap'),
-    gapOut: requireEl('debug-gap-out'),
-    giveUpButton: requireEl('debug-giveup'),
-    textureToggle: requireEl('debug-texture'),
-    resetIntroButton: requireEl('debug-reset-intro'),
-  },
-  editor,
-);
+// デバッグパネルは開発ビルド(npm run dev)でのみ生成する。import.meta.env.DEVは本番ビルドで
+// 静的にfalseへ置き換わるため、この分岐ごとdebugPanel.ts/debug.cssは本番バンドルから除外される
+if (import.meta.env.DEV) {
+  void (async () => {
+    const [{ DebugPanel }] = await Promise.all([import('./debugPanel'), import('./debug.css')]);
+    new DebugPanel(editor);
+  })();
+}
