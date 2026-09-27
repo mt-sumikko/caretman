@@ -61,37 +61,64 @@ if (shouldShowAutosaveNotice()) {
   }, 4000);
 }
 
-for (const [txtId, mdId] of [
-  ['btn-dl-txt', 'btn-dl-md'],
-  ['sp-dl-txt', 'sp-dl-md'],
-] as const) {
-  requireEl<HTMLButtonElement>(txtId).addEventListener('click', () => {
-    downloadText(editor.getPlainText(), 'txt', 'text/plain;charset=utf-8');
-  });
-  requireEl<HTMLButtonElement>(mdId).addEventListener('click', () => {
-    downloadText(editor.getPlainText(), 'md', 'text/markdown;charset=utf-8');
-  });
-}
+requireEl<HTMLButtonElement>('btn-dl-txt').addEventListener('click', () => {
+  downloadText(editor.getPlainText(), 'txt', 'text/plain;charset=utf-8');
+});
+requireEl<HTMLButtonElement>('btn-dl-md').addEventListener('click', () => {
+  downloadText(editor.getPlainText(), 'md', 'text/markdown;charset=utf-8');
+});
+
+// 仮の共有アイコン。UIリサーチが済んだら正式なSVGに差し替え予定
+const SHARE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M12 16V4" />
+  <path d="M7 8l5-5 5 5" />
+  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+</svg>`;
 
 {
-  const dlToggle = requireEl<HTMLButtonElement>('sp-dl-btn');
-  const dlPanel = requireEl<HTMLElement>('sp-dl-panel');
+  const spBtn = requireEl<HTMLButtonElement>('sp-dl-btn');
+  const spPanel = requireEl<HTMLElement>('sp-dl-panel');
 
-  const setPanelOpen = (open: boolean): void => {
-    dlPanel.hidden = !open;
-    dlToggle.setAttribute('aria-expanded', String(open));
-  };
+  // SPで打ったテキストは、ファイルで欲しいというより他のアプリへ転記したいニーズの方が
+  // 強いと想定し、Web Share API(navigator.share)に対応した端末ではOS標準の共有シートへ
+  // 直接テキストを渡す。1タップで完結させ、ドロップダウンは出さない
+  if (navigator.share) {
+    spBtn.setAttribute('aria-label', '共有');
+    spBtn.removeAttribute('aria-expanded');
+    spBtn.removeAttribute('aria-controls');
+    spBtn.innerHTML = SHARE_ICON_SVG;
+    spPanel.remove();
 
-  dlToggle.addEventListener('click', () => setPanelOpen(Boolean(dlPanel.hidden)));
-  // ダウンロードを選んだらパネルを閉じる
-  requireEl<HTMLButtonElement>('sp-dl-txt').addEventListener('click', () => setPanelOpen(false));
-  requireEl<HTMLButtonElement>('sp-dl-md').addEventListener('click', () => setPanelOpen(false));
-  document.addEventListener('pointerdown', (e) => {
-    if (dlPanel.hidden) return;
-    const target = e.target;
-    if (target instanceof Node && (dlPanel.contains(target) || dlToggle.contains(target))) return;
-    setPanelOpen(false);
-  });
+    spBtn.addEventListener('click', () => {
+      const text = editor.getPlainText();
+      if (!text.trim()) return;
+      navigator.share({ text }).catch(() => {
+        // ユーザーがキャンセルした場合などは何もしない
+      });
+    });
+  } else {
+    // 非対応ブラウザ向けフォールバック: 従来通りダウンロードのドロップダウンを出す
+    const setPanelOpen = (open: boolean): void => {
+      spPanel.hidden = !open;
+      spBtn.setAttribute('aria-expanded', String(open));
+    };
+
+    spBtn.addEventListener('click', () => setPanelOpen(Boolean(spPanel.hidden)));
+    requireEl<HTMLButtonElement>('sp-dl-txt').addEventListener('click', () => {
+      downloadText(editor.getPlainText(), 'txt', 'text/plain;charset=utf-8');
+      setPanelOpen(false);
+    });
+    requireEl<HTMLButtonElement>('sp-dl-md').addEventListener('click', () => {
+      downloadText(editor.getPlainText(), 'md', 'text/markdown;charset=utf-8');
+      setPanelOpen(false);
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (spPanel.hidden) return;
+      const target = e.target;
+      if (target instanceof Node && (spPanel.contains(target) || spBtn.contains(target))) return;
+      setPanelOpen(false);
+    });
+  }
 }
 
 // デバッグパネルは開発ビルド(npm run dev)でのみ生成する。import.meta.env.DEVは本番ビルドで
