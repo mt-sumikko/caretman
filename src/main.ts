@@ -1,6 +1,6 @@
 import './style.css';
 import { CaretmanEditor } from './editor';
-import { defaultFilename, downloadText } from './download';
+import { defaultFilename, downloadTxt, TXT_MIME } from './download';
 import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
 import { Autosaver, contentToHtml, loadSavedContent, shouldShowAutosaveNotice } from './autosave';
 import { delay } from './utils';
@@ -12,7 +12,7 @@ import { delay } from './utils';
  * - CaretmanEditor(editor.ts)を作って本文の入力欄として起動する
  * - 前回の続きがあれば復元し、なければ初回デモを再生する
  * - 自動保存(autosave.ts)を仕込み、初回だけ案内トーストを出す
- * - .txt/.mdダウンロードボタン、SPの共有/ダウンロードボタンにクリック時の動作を割り当てる
+ * - ダウンロードボタン(PC)、共有/ダウンロードボタン(SP)にクリック時の動作を割り当てる
  * - 開発中だけ(npm run dev)デバッグパネルを読み込む
  * ここに書かれているのは「画面のどの部品が押されたら何をするか」の配線であり、
  * 実際の細かい処理(保存・ダウンロード等)はそれぞれ別ファイルの関数を呼び出しているだけ。
@@ -87,19 +87,11 @@ void (async () => {
   if (shouldShowAutosaveNotice()) showAutosaveNotice();
 })();
 
-requireEl<HTMLButtonElement>('btn-dl-txt').addEventListener('click', () => {
-  downloadText(editor.getPlainText(), 'txt', 'text/plain;charset=utf-8');
-});
-requireEl<HTMLButtonElement>('btn-dl-md').addEventListener('click', () => {
-  downloadText(editor.getPlainText(), 'md', 'text/markdown;charset=utf-8');
+requireEl<HTMLButtonElement>('btn-dl').addEventListener('click', () => {
+  downloadTxt(editor.getPlainText());
 });
 
 const SHARE_ICON_SVG = `<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M252.31-100Q222-100 201-121q-21-21-21-51.31v-375.38Q180-578 201-599q21-21 51.31-21h72.31q12.76 0 21.38 8.62 8.61 8.61 8.61 21.38T346-568.62q-8.62 8.62-21.38 8.62h-72.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46v375.38q0 4.62 3.85 8.46 3.84 3.85 8.46 3.85h455.38q4.62 0 8.46-3.85 3.85-3.84 3.85-8.46v-375.38q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85h-72.31q-12.76 0-21.38-8.62-8.61-8.61-8.61-21.38t8.61-21.38q8.62-8.62 21.38-8.62h72.31Q738-620 759-599q21 21 21 51.31v375.38Q780-142 759-121q-21 21-51.31 21H252.31Zm206.31-238.62Q450-347.23 450-360v-411.23l-52.92 52.92q-8.93 8.93-20.89 8.81-11.96-.11-21.27-9.42-8.69-9.31-9-21.08-.3-11.77 9-21.07l99.77-99.77q5.62-5.62 11.85-7.93 6.23-2.3 13.46-2.3t13.46 2.3q6.23 2.31 11.85 7.93l99.77 99.77q8.3 8.3 8.5 20.57.19 12.27-8.5 21.58-9.31 9.31-21.39 9.31-12.07 0-21.38-9.31L510-771.23V-360q0 12.77-8.62 21.38Q492.77-330 480-330t-21.38-8.62Z"/></svg>`;
-
-/** SP端末で共有するテキストファイルを、.txt/.mdダウンロードと同じ命名規則で作る */
-function buildShareFile(text: string, ext: 'txt' | 'md', mime: string): File {
-  return new File([text], defaultFilename(ext), { type: mime });
-}
 
 /** PCのChrome/Edge等もnavigator.shareを持つため、機能検出だけでなく実機かどうかも見て判定する */
 function isMobileDevice(): boolean {
@@ -109,61 +101,30 @@ function isMobileDevice(): boolean {
 }
 
 {
+  // SPで打ったテキストは、ファイルで欲しいというより他のアプリへ転記したいニーズの方が強いと想定し、
+  // 実機のSPかつnavigator.share対応端末では、押したらすぐOS標準の共有シートで.txtを渡す(非対応ならダウンロード)。
+  // fileだけを渡しているのは、textと同時に渡すと共有シート側の「コピー」でクリップボードに
+  // 同じテキストが二重に入る不具合が確認できたため
   const spBtn = requireEl<HTMLButtonElement>('sp-dl-btn');
-  const spPanel = requireEl<HTMLElement>('sp-dl-panel');
-  const spTxtRow = requireEl<HTMLButtonElement>('sp-dl-txt');
-  const spMdRow = requireEl<HTMLButtonElement>('sp-dl-md');
-
-  // SPで打ったテキストは、ファイルで欲しいというより他のアプリへ転記したいニーズの方が
-  // 強いと想定し、実機のSPかつnavigator.share対応端末ではOS標準の共有シートを使う。
-  // .txt/.mdの2択はPCのダウンロードと揃え、file単体で渡す(textと同時に渡すと共有シート側の
-  // 「コピー」操作でクリップボードに同一テキストが二重に入る不具合が確認できたため)
   const useShare = isMobileDevice() && Boolean(navigator.share);
 
   if (useShare) {
     spBtn.setAttribute('aria-label', '共有');
     spBtn.innerHTML = SHARE_ICON_SVG;
-    spTxtRow.textContent = '.txtを共有';
-    spMdRow.textContent = '.mdを共有';
   }
 
-  const setPanelOpen = (open: boolean): void => {
-    spPanel.hidden = !open;
-    spBtn.setAttribute('aria-expanded', String(open));
-  };
-
-  const handleRow = (ext: 'txt' | 'md', mime: string): void => {
+  spBtn.addEventListener('click', () => {
     const text = editor.getPlainText();
-    if (text.trim()) {
-      if (useShare) {
-        const file = buildShareFile(text, ext, mime);
-        const shareData: ShareData = navigator.canShare?.({ files: [file] }) ? { files: [file] } : { text };
-        navigator.share(shareData).catch(() => {
-          // ユーザーがキャンセルした場合などは何もしない
-        });
-      } else {
-        downloadText(text, ext, mime);
-      }
+    if (!text.trim()) return;
+    if (!useShare) {
+      downloadTxt(text);
+      return;
     }
-    setPanelOpen(false);
-  };
-
-  spBtn.addEventListener('click', () => setPanelOpen(Boolean(spPanel.hidden)));
-  spTxtRow.addEventListener('click', () => handleRow('txt', 'text/plain;charset=utf-8'));
-  spMdRow.addEventListener('click', () => handleRow('md', 'text/markdown;charset=utf-8'));
-  document.addEventListener('pointerdown', (e) => {
-    if (spPanel.hidden) return;
-    const target = e.target;
-    if (target instanceof Node && (spPanel.contains(target) || spBtn.contains(target))) return;
-    setPanelOpen(false);
-  });
-  // マウス操作を前提にした外側クリックでの閉じ方だけだと、キーボード操作では開いたパネルを
-  // 閉じる手段がなくなってしまうため、Escapeでも閉じられるようにする(閉じたらボタンへ焦点を戻す)
-  spPanel.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      setPanelOpen(false);
-      spBtn.focus();
-    }
+    const file = new File([text], defaultFilename(), { type: TXT_MIME });
+    const shareData: ShareData = navigator.canShare?.({ files: [file] }) ? { files: [file] } : { text };
+    navigator.share(shareData).catch(() => {
+      // ユーザーがキャンセルした場合などは何もしない
+    });
   });
 }
 

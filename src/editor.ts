@@ -81,7 +81,7 @@ export class CaretmanEditor {
     return this.currentPose?.status ?? '';
   }
 
-  /** 打った内容をプレーンテキストとして取得する(.txt/.mdダウンロード用) */
+  /** 打った内容をプレーンテキストとして取得する(.txtのダウンロード・共有用) */
   getPlainText(): string {
     return this.editor.innerText;
   }

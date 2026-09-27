@@ -6,8 +6,6 @@
   --ink: #2c2320;
   --bg: #faf8f3;
   --menu-bg: #fafafa;
-  --panel-bg: #fafaf9;
-  --divider: rgba(44, 35, 32, 0.15);
   /* footerのリンクなど、控えめに見せたい文字色。WCAG AAの文字コントラスト基準(4.5:1)を
      満たす濃さにしてある(0.6だと背景色との組み合わせでわずかに基準を下回っていたため0.68に調整) */
   --ink-muted: rgba(44, 35, 32, 0.68);
@@ -18,8 +16,6 @@
     --ink: #eae7dd;
     --bg: #1c1b18;
     --menu-bg: #26241f;
-    --panel-bg: #221f1b;
-    --divider: rgba(234, 231, 221, 0.15);
     --ink-muted: rgba(234, 231, 221, 0.6);
   }
 }
@@ -65,9 +61,17 @@ body {
   line-height: 1.5;
   font-family: inherit;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-/* SPでは.txt/.mdをヘッダーから消し、メニューパネル内に格納する(Figma SP版に準拠) */
+.dl-btn svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+/* SPではヘッダーのボタンを消し、右上の丸いボタン(.sp-dl-btn)に置き換える */
 @media (max-width: 768px) {
   .toolbar {
     display: none;
@@ -113,7 +117,7 @@ body {
   }
 }
 
-/* ダウンロードボタン・ドロップダウンはSPでのみ表示する(PCはヘッダーの.txt/.mdのみ) */
+/* 右上の丸いダウンロード/共有ボタンはSPでのみ表示する(PCはヘッダーのボタン) */
 .sp-dl-btn {
   display: none;
   position: fixed;
@@ -145,50 +149,6 @@ body {
   .sp-dl-btn {
     display: flex;
   }
-}
-
-.sp-dl-panel {
-  display: none;
-  position: fixed;
-  top: 76px;
-  right: 16px;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 4px 16px;
-  background: var(--panel-bg);
-  border-radius: 16px;
-  box-shadow:
-    0 1px 4px rgba(0, 0, 0, 0.08),
-    0 1px 10px rgba(0, 0, 0, 0.05);
-  z-index: 1000;
-}
-
-@media (max-width: 768px) {
-  .sp-dl-panel:not([hidden]) {
-    display: flex;
-  }
-}
-
-.sp-dl-row {
-  appearance: none;
-  background: transparent;
-  border: none;
-  width: 100%;
-  min-height: 32px;
-  padding: 12px 0;
-  font-size: 14px;
-  font-family: inherit;
-  color: var(--ink);
-  text-align: left;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.sp-dl-divider {
-  width: 100%;
-  border: none;
-  border-top: 1px solid var(--divider);
-  margin: 0;
 }
 
 .footer {
