@@ -288,20 +288,23 @@ export class DemoStickmanState {
       const a = hopLeanAmt;
       hip.x += d * a;
       hip.y += a;
-      // 胴は約28°前傾。後ろ脚と胴が1本の斜めの線に揃うようにして、飛び出す勢いを出す
-      neck.x += d * 9.4 * a;
-      neck.y += 3.1 * a;
-      head.cx += d * 12.4 * a; // 頭は胴の延長線上
-      head.cy += 3.4 * a;
+      // あくまで真横への移動なので、上半身はほぼ起こしたまま(胴の傾きは約11°、頭は首の真上)。
+      // 斜めの勢いは、後ろへ大きく蹴り出した脚(約33°)で見せる
+      neck.x += d * 3.5 * a;
+      neck.y += a;
+      head.cx += d * 3.5 * a;
+      head.cy += a;
       const shoulder = { x: neck.x + (hip.x - neck.x) * 0.3, y: neck.y + (hip.y - neck.y) * 0.3 }; // render.tsの肩と同じ位置
-      const leadHand = lerpPoint(d > 0 ? neutral.armR : neutral.armL, { x: shoulder.x + d * 2.5, y: shoulder.y + 3.5 }, a);
+      const leadHand = lerpPoint(d > 0 ? neutral.armR : neutral.armL, { x: shoulder.x + d, y: shoulder.y + 3 }, a);
       const leadElbowAuto = { x: (shoulder.x + leadHand.x) / 2, y: (shoulder.y + leadHand.y) / 2 + 1.6 };
-      const leadElbow = lerpPoint(leadElbowAuto, { x: shoulder.x + d * 8.5, y: shoulder.y + 0.3 }, a);
-      const trailHand = lerpPoint(d > 0 ? neutral.armL : neutral.armR, { x: shoulder.x - d * 16, y: shoulder.y - 0.5 }, a);
-      const backFoot = lerpPoint(d > 0 ? neutral.legL : neutral.legR, { x: hip.x - d * 8.5, y: neutral.legL.y }, a);
-      const backKnee = lerpPoint(hip, backFoot, 0.5);
-      const frontFoot = lerpPoint(d > 0 ? neutral.legR : neutral.legL, { x: hip.x + d * 8.5, y: hip.y + 10 }, a);
-      const frontKnee = lerpPoint(lerpPoint(hip, frontFoot, 0.5), { x: hip.x + d * 8, y: hip.y + 1 }, a);
+      const leadElbow = lerpPoint(leadElbowAuto, { x: shoulder.x + d * 8.5, y: shoulder.y + 0.2 }, a);
+      const trailHand = lerpPoint(d > 0 ? neutral.armL : neutral.armR, { x: shoulder.x - d * 16, y: shoulder.y }, a);
+      const backFoot = lerpPoint(d > 0 ? neutral.legL : neutral.legR, { x: hip.x - d * 9.8, y: neutral.legL.y }, a);
+      // 脚は前後の膝を1本のなめらかな線で結んで描くため、そのままだと前脚の膝に引っぱられて後ろ脚が弓なりにしなる。
+      // 膝を少しだけ逆側(後ろ上)へずらして打ち消し、ピンと伸びた1本の斜め線に見せる
+      const backKnee = lerpPoint(lerpPoint(hip, backFoot, 0.5), { x: (hip.x + backFoot.x) / 2 - d * 1.5, y: (hip.y + backFoot.y) / 2 - 1 }, a);
+      const frontFoot = lerpPoint(d > 0 ? neutral.legR : neutral.legL, { x: hip.x - d, y: hip.y + 11 }, a);
+      const frontKnee = lerpPoint(lerpPoint(hip, frontFoot, 0.5), { x: hip.x + d * 6, y: hip.y + 0.5 }, a);
       if (d > 0) {
         armR = leadHand;
         elbowROverride = leadElbow;
