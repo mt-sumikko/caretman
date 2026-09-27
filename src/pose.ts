@@ -309,10 +309,10 @@ export class StickmanState {
       kneeR = { x: lerp(standKneeR.x, tuckKneeR.x, arcTuckAmt), y: lerp(standKneeR.y, tuckKneeR.y, arcTuckAmt) };
       footL = { x: lerp(neutral.legL.x, tuckFootL.x, arcTuckAmt), y: lerp(neutral.legL.y, tuckFootL.y, arcTuckAmt) };
       footR = { x: lerp(neutral.legR.x, tuckFootR.x, arcTuckAmt), y: lerp(neutral.legR.y, tuckFootR.y, arcTuckAmt) };
-      // 腕のyはこの後jumpYで体ごと持ち上げられる(-20程度)ぶん相殺されるため、見た目で
-      // しっかり下げ切って見えるよう、その分を見込んで大きめの値にしてある
-      const hangArmL = { x: -4, y: 40 };
-      const hangArmR = { x: 4, y: 40 };
+      // 肩(y≒-20.6)の真下に、腕の長さ(約16)を保ったまま垂らした位置。体と一緒にjumpYで持ち上がるので、
+      // ここは体に対する相対位置として考える(大きくすると腕が地面まで伸びて脚のように見えてしまう)
+      const hangArmL = { x: -4, y: -5 };
+      const hangArmR = { x: 4, y: -5 };
       armL = { x: lerp(neutral.armL.x, hangArmL.x, arcTuckAmt), y: lerp(neutral.armL.y, hangArmL.y, arcTuckAmt) };
       armR = { x: lerp(neutral.armR.x, hangArmR.x, arcTuckAmt), y: lerp(neutral.armR.y, hangArmR.y, arcTuckAmt) };
     } else if (this.throwActive) {

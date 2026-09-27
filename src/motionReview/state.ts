@@ -221,10 +221,10 @@ export class DemoStickmanState {
       kneeR = { x: lerp(standKneeR.x, tuckKneeR.x, arcTuckAmt), y: lerp(standKneeR.y, tuckKneeR.y, arcTuckAmt) };
       footL = { x: lerp(neutral.legL.x, tuckFootL.x, arcTuckAmt), y: lerp(neutral.legL.y, tuckFootL.y, arcTuckAmt) };
       footR = { x: lerp(neutral.legR.x, tuckFootR.x, arcTuckAmt), y: lerp(neutral.legR.y, tuckFootR.y, arcTuckAmt) };
-      // 腕のyはこの後jumpYで体ごと持ち上げられる(-20程度)ぶん相殺されるため、その分を見込んで
-      // 大きめの値にしてある(実エディタ: src/pose.ts と同じ値)
-      const hangArmL = { x: -4, y: 40 };
-      const hangArmR = { x: 4, y: 40 };
+      // 肩の真下に腕の長さを保ったまま垂らした位置。体と一緒にjumpYで持ち上がるので、体に対する
+      // 相対位置として考える(実エディタ: src/pose.ts と同じ値)
+      const hangArmL = { x: -4, y: -5 };
+      const hangArmR = { x: 4, y: -5 };
       armL = { x: lerp(neutral.armL.x, hangArmL.x, arcTuckAmt), y: lerp(neutral.armL.y, hangArmL.y, arcTuckAmt) };
       armR = { x: lerp(neutral.armR.x, hangArmR.x, arcTuckAmt), y: lerp(neutral.armR.y, hangArmR.y, arcTuckAmt) };
     } else if (this.throwActive) {
