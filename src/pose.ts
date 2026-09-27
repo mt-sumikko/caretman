@@ -14,7 +14,7 @@ import type { Point, Pose, JumpPhase } from './types';
  * 実際の画面サイズへの変換(フォントサイズに応じた拡大)はeditor.ts側で行う。
  */
 
-export const LONG_IDLE_MS = 10000; // これだけ何も操作がないと「長い待機(煽り)」
+export const LONG_IDLE_MS = 30000; // これだけ何も操作がないと「長い待機(煽り)」(10秒だと早すぎたので30秒に)
 const CARET_POSE_DELAY_MS = 3000; // 打つ/歩行の手を止めてから、キャレットのフリ(腕上げ)を始めるまでの間(基本ポーズで繋ぐ)
 const SWING_PERIOD_MS = 1800; // 長い待機(煽り)で左右に体重移動する1往復の時間。せわしなさ=ウザさ
 const TAUNT_SPEED = 0.08; // 通常の立ち姿⇔煽りポーズ(腕を真横・広いスタンス)の切り替え速度

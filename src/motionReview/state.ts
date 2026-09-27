@@ -97,7 +97,7 @@ export class DemoStickmanState {
         this.state.recordActivity(now); // 打ち続けている
         return;
       case 'longIdle':
-        this.state.recordActivity(now - LONG_IDLE_MS); // 10秒放置された状態に留める(5分で座らないように)
+        this.state.recordActivity(now - LONG_IDLE_MS); // 煽りが始まる時間だけ放置された状態に留める(5分で座らないように)
         return;
       case 'pasting':
         this.state.triggerPaste(now); // 貼り付けポーズを出し続ける
