@@ -337,14 +337,14 @@ export class DemoStickmanState {
       footL.x = lerp(footL.x, 0, this.squashAmt * 0.9);
       footR.x = lerp(footR.x, 0, this.squashAmt * 0.9);
     } else if (isSelecting) {
-      // 選択ポーズ(仮/手描き参考画像から): 両腕を揃えて右上へ伸ばし、先端をフックのように曲げる。
-      // 右足は高く曲げて前へ持ち上げ、左足はまっすぐ下ろして接地させる
-      armL = { x: 18, y: -30 };
-      armR = { x: 21, y: -27 };
-      kneeL = { x: -4, y: 0 };
-      kneeR = { x: 11, y: -7 };
-      footL = { x: -5, y: 8 };
-      footR = { x: 9, y: -3 };
+      // 選択ポーズ(仮): 両腕は体幹に沿ってほぼ真上に伸ばし、先端(手)だけ右へ向ける(細さを保つ)。
+      // 左足はつま先立ちで接地、右足は膝を高く上げる
+      armL = { x: 9, y: -44 };
+      armR = { x: 13, y: -42 };
+      kneeL = { x: -3, y: 1 };
+      kneeR = { x: 9, y: -6 };
+      footL = { x: -5, y: 7 };
+      footR = { x: 7, y: -1 };
     } else if (isPasting) {
       // 貼り付けポーズ(仮): 足先は右側に残したまま、膝だけ左へ入れる。腰を深く屈めて左へ前屈みになる
       hip.x -= 2;
@@ -409,7 +409,7 @@ export class DemoStickmanState {
     footL.y += hopY * 0.4;
     footR.y += hopY * 0.4;
 
-    const elbowBend = isTyping ? 1.5 : isSelecting ? 7 : isBase ? 0 : 2.5;
+    const elbowBend = isTyping ? 1.5 : isSelecting ? 3 : isBase ? 0 : 2.5;
 
     return {
       head,
