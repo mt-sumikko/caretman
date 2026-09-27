@@ -32,6 +32,7 @@ export class CaretmanEditor {
   private introDemoActive = false;
   private introDemoCancelled = false;
   private caretBeforePointerDown: { node: Node; offset: number } | null = null;
+  private onTextChanged: (() => void) | null = null;
 
   constructor(els: CaretmanEditorElements) {
     this.editor = els.editor;
@@ -67,6 +68,27 @@ export class CaretmanEditor {
   /** 打った内容をプレーンテキストとして取得する(.txt/.mdダウンロード用) */
   getPlainText(): string {
     return this.editor.innerText;
+  }
+
+  /** 本文が変化するたび(打鍵・削除・貼り付けなど)に呼ばれるコールバックを登録する(自動保存用) */
+  setOnTextChanged(cb: () => void): void {
+    this.onTextChanged = cb;
+  }
+
+  /** 保存されていた内容を復元し、キャレットを末尾に置く */
+  restoreContent(html: string): void {
+    this.editor.innerHTML = html;
+    this.lastTextLength = this.editor.textContent?.length ?? 0;
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(this.editor);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    } catch {
+      // 復元時のキャレット設置に失敗しても致命的ではないので無視する
+    }
   }
 
   /** デバッグ用: 5秒後に「5分あきらめ経過」状態に到達させる */
@@ -302,6 +324,7 @@ export class CaretmanEditor {
       }
       this.lastTextLength = newLength;
       this.updateFigurePosition();
+      this.onTextChanged?.();
     });
 
     this.editor.addEventListener('pointerdown', () => {
