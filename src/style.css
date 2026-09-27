@@ -94,11 +94,6 @@ body {
   }
 }
 
-.editor:empty::before {
-  content: 'いっしょに書いてこ〜!';
-  color: var(--ink);
-}
-
 .menu-btn {
   position: fixed;
   right: 24px;
@@ -115,8 +110,6 @@ body {
   color: var(--ink);
   opacity: 0.9;
   box-shadow: 0 1px 2.5px rgba(0, 0, 0, 0.05);
-  font-size: 20px;
-  line-height: 1;
   cursor: pointer;
 }
 

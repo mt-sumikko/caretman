@@ -1,6 +1,7 @@
 import { StickmanState } from './pose';
 import { StickmanRenderer, type RendererElements } from './render';
 import type { Pose } from './types';
+import { delay } from './utils';
 
 const JITTER_INTERVAL = 40;
 const FIGURE_RATIO = 30 / 44; // 幅:高さの比率(元デザインを踏襲)
@@ -27,6 +28,8 @@ export class CaretmanEditor {
   private lastLineY: number | null = null;
   private lastTextLength = 0;
   private currentPose: Pose | null = null;
+  private introDemoActive = false;
+  private introDemoCancelled = false;
 
   constructor(els: CaretmanEditorElements) {
     this.editor = els.editor;
@@ -62,6 +65,73 @@ export class CaretmanEditor {
   /** デバッグ用: 5秒後に「5分あきらめ経過」状態に到達させる */
   debugFastForwardToGivenUp(): void {
     this.state.debugFastForwardToGivenUp(performance.now(), 5000);
+  }
+
+  /**
+   * 初回訪問時だけ、サイト側が自動でタイプ→少し待つ→まとめて消す、というデモを再生する。
+   * プレースホルダーではなく実際にDOMへ文字を打ち込むので、打鍵/削除の一連のモーションが
+   * 実際に発火する。ユーザーが操作(クリック/キー入力)した時点で即座に中断する。
+   */
+  async runIntroDemo(text: string): Promise<void> {
+    if (this.introDemoCancelled) return;
+    this.introDemoActive = true;
+    this.editor.focus();
+
+    await delay(600);
+    for (const ch of Array.from(text)) {
+      if (this.introDemoCancelled) {
+        this.introDemoActive = false;
+        return;
+      }
+      this.insertTextAtCaret(ch);
+      this.editor.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: ch, bubbles: true }));
+      await delay(90 + Math.random() * 70);
+    }
+
+    if (this.introDemoCancelled) {
+      this.introDemoActive = false;
+      return;
+    }
+    await delay(1000);
+
+    if (this.introDemoCancelled) {
+      this.introDemoActive = false;
+      return;
+    }
+    this.editor.textContent = '';
+    this.editor.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+    this.introDemoActive = false;
+  }
+
+  private cancelIntroDemo(): void {
+    if (!this.introDemoActive) return;
+    this.introDemoCancelled = true;
+    this.introDemoActive = false;
+    this.editor.textContent = '';
+    this.lastTextLength = 0;
+    this.updateFigurePosition();
+  }
+
+  private insertTextAtCaret(text: string): void {
+    const sel = window.getSelection();
+    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    if (!range || !this.editor.contains(range.startContainer)) {
+      const node = document.createTextNode(text);
+      this.editor.appendChild(node);
+      const r = document.createRange();
+      r.setStartAfter(node);
+      r.collapse(true);
+      sel?.removeAllRanges();
+      sel?.addRange(r);
+      return;
+    }
+    range.deleteContents();
+    const node = document.createTextNode(text);
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
   }
 
   init(): void {
@@ -208,7 +278,12 @@ export class CaretmanEditor {
       this.updateFigurePosition();
     });
 
+    this.editor.addEventListener('pointerdown', () => {
+      this.cancelIntroDemo();
+    });
+
     this.editor.addEventListener('keydown', (e) => {
+      this.cancelIntroDemo();
       if (e.key === 'Enter' && !e.isComposing) {
         this.state.triggerJumpAnticipate(performance.now());
       }

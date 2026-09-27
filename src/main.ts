@@ -29,6 +29,17 @@ const editor = new CaretmanEditor({
 });
 editor.init();
 
+const INTRO_DEMO_KEY = 'caretman.introDemoShown';
+const INTRO_DEMO_TEXT = 'いっしょに書いてこ〜！';
+try {
+  if (!localStorage.getItem(INTRO_DEMO_KEY)) {
+    localStorage.setItem(INTRO_DEMO_KEY, '1');
+    void editor.runIntroDemo(INTRO_DEMO_TEXT);
+  }
+} catch {
+  // プライベートブラウジング等でlocalStorageが使えない場合はデモをスキップする
+}
+
 new DebugPanel(
   {
     toggleButton: requireEl('debug-toggle'),

@@ -5,3 +5,7 @@ export function lerp(a: number, b: number, t: number): number {
 export function jitter(amount: number): number {
   return (Math.random() - 0.5) * 2 * amount;
 }
+
+export function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
