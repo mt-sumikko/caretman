@@ -6,6 +6,9 @@ import { delay } from './utils';
 const JITTER_INTERVAL = 40;
 const FIGURE_RATIO = 30 / 44; // 幅:高さの比率(元デザインを踏襲)
 const BASE_HEIGHT_MULT = 1.35; // フォントサイズに対する基準倍率(scale=1の時)
+// 立ちポーズの足位置(viewBox上のy=8)は、figureボックスの下端(y=16)より上にある。
+// その分だけ下にずらして、足先を文字のベースライン(=ボックス下端に合わせているcaret位置)へ寄せる
+const FOOT_BASELINE_OFFSET_RATIO = 8 / 60;
 
 export interface CaretmanEditorElements {
   editor: HTMLElement;
@@ -307,7 +310,7 @@ export class CaretmanEditor {
     // 後ろに文字がある(=文字の間にいる)時は寄せずにその場に留める
     const hGap = this.hasCharAfterCaret() ? 0 : fontSize * this.gapMult;
     this.figure.style.left = `${x - width / 2 + hGap}px`;
-    this.figure.style.top = `${y - height}px`; // ベースラインは文字に揃える
+    this.figure.style.top = `${y - height + height * FOOT_BASELINE_OFFSET_RATIO}px`; // 足先を文字のベースラインに揃える
   }
 
   private bindEvents(): void {
