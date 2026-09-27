@@ -1,5 +1,6 @@
 import type { CaretmanEditor } from './editor';
 import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
+import { CONTENT_KEY, NOTICE_SHOWN_KEY } from './autosave';
 
 const STATUS_POLL_MS = 200;
 
@@ -67,7 +68,7 @@ export class DebugPanel {
     const giveUpRow = el('div', 'debug-row');
     giveUpRow.append(giveUpButton);
 
-    const resetIntroButton = el('button', 'debug-btn', '初回デモをリセットして再読み込み');
+    const resetIntroButton = el('button', 'debug-btn', '初回訪問の状態に戻して再読み込み(本文も消えます)');
     resetIntroButton.type = 'button';
     const resetIntroRow = el('div', 'debug-row');
     resetIntroRow.append(resetIntroButton);
@@ -146,9 +147,11 @@ export class DebugPanel {
 
     textureToggle.addEventListener('change', () => this.editor.setTextureEnabled(textureToggle.checked));
 
+    // 初回訪問を再現する。デモの再生済みフラグだけ消しても、保存された本文があると起動時に本文の復元が
+    // 優先されてデモが流れないので、本文と自動保存の案内済みフラグもまとめて消す
     resetIntroButton.addEventListener('click', () => {
       try {
-        localStorage.removeItem(INTRO_DEMO_STORAGE_KEY);
+        for (const key of [INTRO_DEMO_STORAGE_KEY, CONTENT_KEY, NOTICE_SHOWN_KEY]) localStorage.removeItem(key);
       } catch {
         // プライベートブラウジング等でlocalStorageが使えない場合は何もしない
       }

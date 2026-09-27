@@ -77,6 +77,11 @@ export class CaretmanEditor {
     this.textureEnabled = v && this.renderer.roughAvailable;
   }
 
+  /** 初回デモが自動で文字を打ち込んでいる最中かどうか */
+  isIntroDemoActive(): boolean {
+    return this.introDemoActive;
+  }
+
   getStatus(): string {
     return this.currentPose?.status ?? '';
   }

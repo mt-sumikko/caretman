@@ -4,8 +4,8 @@
  * 自動保存する仕組みと、保存内容を読み込み直す時のためのヘルパーをまとめたもの。
  */
 
-const CONTENT_KEY = 'caretman.content';
-const NOTICE_SHOWN_KEY = 'caretman.autosaveNoticeShown';
+export const CONTENT_KEY = 'caretman.content';
+export const NOTICE_SHOWN_KEY = 'caretman.autosaveNoticeShown';
 const SAVE_DEBOUNCE_MS = 400;
 
 /** 初回だけ「このブラウザに自動保存されます」を伝える通知を出すべきかどうか(出すなら同時にフラグも立てる) */

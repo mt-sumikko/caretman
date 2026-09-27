@@ -46,7 +46,10 @@ const editor = new CaretmanEditor({
 editor.init();
 
 const autosaver = new Autosaver(() => editor.getPlainText());
-editor.setOnTextChanged(() => autosaver.scheduleSave());
+// 初回デモが打ち込んでいる文字は保存しない(途中で閉じると、次に開いた時にデモの文が本文として残ってしまうため)
+editor.setOnTextChanged(() => {
+  if (!editor.isIntroDemoActive()) autosaver.scheduleSave();
+});
 
 // 自動保存の初回案内は、デモや最初の入力と被らないよう「ひと息ついたタイミング」まで待って出す
 const NOTICE_MIN_DELAY_MS = 1200;
