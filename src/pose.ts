@@ -35,6 +35,7 @@ const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
 const SIT_SPEED = 0.05; // 座り込みへの遷移速度
 const SQUASH_SPEED = 0.15; // 文字の間にいる時に体を薄くする速度
 const BLINK_HALF_MS = 530; // 一般的なキャレットの点滅速度(OSの既定値目安)
+const BLINK_DIM_OPACITY = 0.4; // 点滅の暗い側。完全に消すと棒人間を見失って不安になるので、薄く残す
 
 // 肘は「肩と手の中点を少し前へ膨らませる」ことで、なめらかな曲げの制御点として使う
 // (決定版レンダリングでの検証値)
@@ -623,7 +624,7 @@ export class StickmanState {
     let blinkOpacity: number | null = null;
     if (isCaretPose && this.focused) {
       const blinkElapsed = dt - (TYPE_HOLD_MS + CARET_POSE_DELAY_MS);
-      blinkOpacity = Math.floor(blinkElapsed / BLINK_HALF_MS) % 2 === 0 ? 1 : 0;
+      blinkOpacity = Math.floor(blinkElapsed / BLINK_HALF_MS) % 2 === 0 ? 1 : BLINK_DIM_OPACITY;
     }
 
     return {
