@@ -1,4 +1,4 @@
-import { lerp } from './utils';
+import { lerp, lerpPoint } from './utils';
 import type { Point, Pose, JumpPhase } from './types';
 
 /**
@@ -16,7 +16,8 @@ import type { Point, Pose, JumpPhase } from './types';
 
 const LONG_IDLE_MS = 10000;
 const CARET_POSE_DELAY_MS = 3000; // 打つ/歩行の手を止めてから、キャレットのフリ(腕上げ)を始めるまでの間(基本ポーズで繋ぐ)
-const SWING_PERIOD_MS = 2600;
+const SWING_PERIOD_MS = 1800; // 長い待機(煽り)で左右に体重移動する1往復の時間。せわしなさ=ウザさ
+const TAUNT_SPEED = 0.08; // 通常の立ち姿⇔煽りポーズ(腕を真横・広いスタンス)の切り替え速度
 const GIVE_UP_MS = 5 * 60 * 1000; // 5分煽ったら諦めて座る
 const TYPE_HOLD_MS = 300;
 const ANTICIPATE_DURATION = 130;
@@ -40,7 +41,8 @@ const BLINK_HALF_MS = 530; // 一般的なキャレットの点滅速度(OSの�
 const TYPING_ELBOW_BEND = 1.5;
 const SELECTING_ELBOW_BEND = 3;
 const DEFAULT_ELBOW_BEND = 1.6; // 通常時の肘。上向きに曲がりすぎないよう、だらんとした腕に近づけた
-const CROUCH_ELBOW_BEND_BOOST = 2; // 助走/着地の踏ん張り中、肘をさらに曲げて力の入った感じを足す
+const CROUCH_ELBOW_BEND_BOOST = 4.5; // 助走/着地の踏ん張り中、肘をさらに曲げて力の入った感じを足す
+const TAUNT_ELBOW_BEND = 0.2; // 煽り中は腕を真横にピンと張る
 const ARC_PEAK_ELBOW_BEND = 0.4; // ジャンプの頂点付近では、腕を伸ばし切った見た目にする
 
 const neutral = {
@@ -62,7 +64,8 @@ export interface ComputePoseOptions {
 
 export class StickmanState {
   private lastKeyTime: number;
-  private leanPhase = 0;
+  private leanPhase = 0; // -1=左足に体重 / 1=右足に体重
+  private tauntAmt = 0; // 0=通常の立ち姿 / 1=煽りポーズ
   private armRaiseAmt = 1; // 0=下ろした状態 / 1=上げきった状態
   private sitAmt = 0; // 0=立っている / 1=座り込み完了
   private squashAmt = 0; // 0=通常 / 1=文字の間で極限まで薄い
@@ -170,9 +173,12 @@ export class StickmanState {
     // 短い待機に入った直後は基本ポーズのまま少し繋ぎ、しばらくしてからキャレットのフリを始める
     const isCaretPose = isShortIdle && dt >= TYPE_HOLD_MS + CARET_POSE_DELAY_MS;
 
-    // 長い待機の体重移動フェーズ(あきらめたら目標0にして自然に静止へ)
-    const leanTarget = isLongIdle ? Math.sin((now / SWING_PERIOD_MS) * Math.PI * 2) : 0;
-    this.leanPhase += (leanTarget - this.leanPhase) * 0.05;
+    // 長い待機の体重移動フェーズ(あきらめたら目標0にして自然に静止へ)。
+    // サイン波の山を平らに潰し(|s|^0.5)、左右の端でグッと粘ってから素早く反対へ移る「よっ、ほっ」のリズムにする
+    const swing = Math.sin((now / SWING_PERIOD_MS) * Math.PI * 2);
+    const leanTarget = isLongIdle ? Math.sign(swing) * Math.sqrt(Math.abs(swing)) : 0;
+    this.leanPhase += (leanTarget - this.leanPhase) * 0.12;
+    this.tauntAmt += ((isLongIdle ? 1 : 0) - this.tauntAmt) * TAUNT_SPEED;
 
     // 立ってる状態⇔座り込み、をなめらかに繋ぐための係数
     const sitTarget = isGivenUp ? 1 : 0;
@@ -470,20 +476,35 @@ export class StickmanState {
       footL.x = lerp(footL.x, 0, this.squashAmt * 0.9);
       footR.x = lerp(footR.x, 0, this.squashAmt * 0.9);
     } else {
-      // 長い待機(体重移動) ⇔ 諦めて座り込み、をsitAmtでなめらかに繋ぐ
-      const hipShift = this.leanPhase * 5;
-      const headShift = this.leanPhase * -2.5;
-      const armSwingLean = this.leanPhase * 5;
+      // 長い待機(煽り): 腕を真横にピンと張り、片膝ずつ曲げて大きく左右に体重移動する「こんなに暇だぞ〜」ポーズ。
+      // 通常の立ち姿⇔煽りポーズはtauntAmtで、煽り⇔諦めて座り込みはsitAmtでなめらかに繋ぐ
+      const lean = this.leanPhase;
+      const bendL = Math.max(0, -lean); // 左足に体重を乗せている度合い(=左膝の曲がり具合)
+      const bendR = Math.max(0, lean);
+      const dip = Math.abs(lean) * 4; // 膝を曲げたぶん体全体が沈む
+      const tauntHip = { x: lean * 5, y: neutral.hip.y + dip };
+      const tauntNeckY = neutral.neck.y + dip;
+      const shoulderY = tauntNeckY + (tauntHip.y - tauntNeckY) * 0.3; // render.tsの肩の位置(胴の30%地点)と同じ
+      const tauntFootL = { x: -8 - bendL * 4, y: neutral.legL.y };
+      const tauntFootR = { x: 8 + bendR * 4, y: neutral.legR.y };
+      // 伸ばしている側の膝は腰と足先の中点(=まっすぐ)、曲げた側は腰から真横に張り出させる
+      const tauntKneeL = lerpPoint(lerpPoint(tauntHip, tauntFootL, 0.5), { x: tauntHip.x - 9, y: tauntHip.y + 2 }, bendL);
+      const tauntKneeR = lerpPoint(lerpPoint(tauntHip, tauntFootR, 0.5), { x: tauntHip.x + 9, y: tauntHip.y + 2 }, bendR);
+      // 腕は肩の高さで真横。体重を乗せた側へ少しだけ傾けて、シーソーのように揺らす
+      const tauntArmL = { x: tauntHip.x - 15, y: shoulderY - lean * 1.5 };
+      const tauntArmR = { x: tauntHip.x + 15, y: shoulderY + lean * 1.5 };
 
-      const swayHip = { x: neutral.hip.x + hipShift, y: neutral.hip.y };
-      const swayHeadCx = neutral.head.cx + headShift;
-      const swayNeckX = neutral.neck.x + headShift * 0.6;
-      const swayArmL = { x: neutral.armL.x, y: neutral.armL.y - armSwingLean };
-      const swayArmR = { x: neutral.armR.x, y: neutral.armR.y + armSwingLean };
-      const swayKneeL = { x: neutral.legL.x / 2, y: (swayHip.y + neutral.legL.y) / 2 };
-      const swayKneeR = { x: neutral.legR.x / 2, y: (swayHip.y + neutral.legR.y) / 2 };
-      const swayFootL = { x: neutral.legL.x, y: neutral.legL.y };
-      const swayFootR = { x: neutral.legR.x, y: neutral.legR.y };
+      const t = this.tauntAmt;
+      const swayHip = lerpPoint(neutral.hip, tauntHip, t);
+      const swayHeadCx = swayHip.x + lean * 1.2 * t; // 頭は体よりちょっとだけ大きく振って、ノリノリ感を出す
+      const swayNeckX = swayHip.x;
+      const swayDip = dip * t;
+      const swayArmL = lerpPoint(neutral.armL, tauntArmL, t);
+      const swayArmR = lerpPoint(neutral.armR, tauntArmR, t);
+      const swayKneeL = lerpPoint({ x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 }, tauntKneeL, t);
+      const swayKneeR = lerpPoint({ x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 }, tauntKneeR, t);
+      const swayFootL = lerpPoint(neutral.legL, tauntFootL, t);
+      const swayFootR = lerpPoint(neutral.legR, tauntFootR, t);
 
       // あぐら風: 膝を左右に大きく開き、足先は逆に体の中心近くまで寄せる(手描き参考画像に合わせた)
       const sitHip = { x: neutral.hip.x, y: neutral.hip.y + 16 };
@@ -497,9 +518,9 @@ export class StickmanState {
       hip.x = lerp(swayHip.x, sitHip.x, this.sitAmt);
       hip.y = lerp(swayHip.y, sitHip.y, this.sitAmt);
       head.cx = lerp(swayHeadCx, neutral.head.cx, this.sitAmt);
-      head.cy += this.sitAmt * 13;
+      head.cy += lerp(swayDip, 13, this.sitAmt);
       neck.x = lerp(swayNeckX, neutral.neck.x, this.sitAmt);
-      neck.y += this.sitAmt * 13;
+      neck.y += lerp(swayDip, 13, this.sitAmt);
       armL = { x: lerp(swayArmL.x, sitArmL.x, this.sitAmt), y: lerp(swayArmL.y, sitArmL.y, this.sitAmt) };
       armR = { x: lerp(swayArmR.x, sitArmR.x, this.sitAmt), y: lerp(swayArmR.y, sitArmR.y, this.sitAmt) };
       kneeL = { x: lerp(swayKneeL.x, sitKneeL.x, this.sitAmt), y: lerp(swayKneeL.y, sitKneeL.y, this.sitAmt) };
@@ -530,7 +551,7 @@ export class StickmanState {
           ? DEFAULT_ELBOW_BEND + crouchAmt * CROUCH_ELBOW_BEND_BOOST
           : this.jumpPhase === 'arc'
             ? lerp(DEFAULT_ELBOW_BEND, ARC_PEAK_ELBOW_BEND, arcTuckAmt)
-            : DEFAULT_ELBOW_BEND;
+            : lerp(DEFAULT_ELBOW_BEND, TAUNT_ELBOW_BEND, this.tauntAmt * (1 - this.sitAmt));
 
     // キャレットのフリをしている間だけ、実際のキャレットらしく一定速度で点滅させる
     // (フォーカスが外れている間は不透明度をunfocused側の演出に譲り、ここでは制御しない)

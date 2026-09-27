@@ -1,4 +1,4 @@
-import { lerp } from '../utils';
+import { lerp, lerpPoint } from '../utils';
 import type { Point, Pose } from '../types';
 
 /**
@@ -19,7 +19,8 @@ const CONFIRM_HOP_DURATION = 180;
 const ARM_RISE_SPEED = 0.22;
 const SIT_SPEED = 0.05;
 const SQUASH_SPEED = 0.15;
-const LONG_IDLE_SWING_MS = 2600;
+const LONG_IDLE_SWING_MS = 1800; // 実エディタのSWING_PERIOD_MSと同じ値
+const TAUNT_SPEED = 0.08; // 実エディタと同じ値
 const REPEAT_GAP_MS = 700; // ワンショット系モーションの、選択中の自動リピート間隔
 const CARET_POSE_DELAY_MS = 3000; // 「短い待機」ピルを選んでから、キャレットのフリ(腕上げ)を始めるまでの間(実エディタと同じ値)
 const BLINK_HALF_MS = 530; // 一般的なキャレットの点滅速度(実エディタと同じ値)
@@ -67,6 +68,7 @@ type JumpPhase = 'none' | 'anticipate' | 'arc' | 'brace';
 
 export class DemoStickmanState {
   private leanPhase = 0;
+  private tauntAmt = 0;
   private armRaiseAmt = 1;
   private sitAmt = 0;
   private squashAmt = 0;
@@ -120,8 +122,11 @@ export class DemoStickmanState {
       this.confirmHopStart = now;
     }
 
-    const leanTarget = isLongIdle ? Math.sin((now / LONG_IDLE_SWING_MS) * Math.PI * 2) : 0;
-    this.leanPhase += (leanTarget - this.leanPhase) * 0.05;
+    // 左右の端でグッと粘ってから素早く反対へ移るリズム(実エディタと同じ)
+    const swing = Math.sin((now / LONG_IDLE_SWING_MS) * Math.PI * 2);
+    const leanTarget = isLongIdle ? Math.sign(swing) * Math.sqrt(Math.abs(swing)) : 0;
+    this.leanPhase += (leanTarget - this.leanPhase) * 0.12;
+    this.tauntAmt += ((isLongIdle ? 1 : 0) - this.tauntAmt) * TAUNT_SPEED;
 
     const sitTarget = isGivenUp ? 1 : 0;
     this.sitAmt += (sitTarget - this.sitAmt) * SIT_SPEED;
@@ -379,19 +384,32 @@ export class DemoStickmanState {
       footL = { x: neutral.legL.x, y: neutral.legL.y };
       footR = { x: neutral.legR.x, y: neutral.legR.y };
     } else {
-      // 長い待機(体重移動) ⇔ 諦めて座り込み
-      const hipShift = this.leanPhase * 5;
-      const headShift = this.leanPhase * -2.5;
-      const armSwingLean = this.leanPhase * 5;
-      const swayHip = { x: neutral.hip.x + hipShift, y: neutral.hip.y };
-      const swayHeadCx = neutral.head.cx + headShift;
-      const swayNeckX = neutral.neck.x + headShift * 0.6;
-      const swayArmL = { x: neutral.armL.x, y: neutral.armL.y - armSwingLean };
-      const swayArmR = { x: neutral.armR.x, y: neutral.armR.y + armSwingLean };
-      const swayKneeL = { x: neutral.legL.x / 2, y: (swayHip.y + neutral.legL.y) / 2 };
-      const swayKneeR = { x: neutral.legR.x / 2, y: (swayHip.y + neutral.legR.y) / 2 };
-      const swayFootL = { x: neutral.legL.x, y: neutral.legL.y };
-      const swayFootR = { x: neutral.legR.x, y: neutral.legR.y };
+      // 長い待機(煽り: 腕を真横、片膝ずつ曲げて大きく体重移動) ⇔ 諦めて座り込み(実エディタ: src/pose.ts と同じ値)
+      const lean = this.leanPhase;
+      const bendL = Math.max(0, -lean);
+      const bendR = Math.max(0, lean);
+      const dip = Math.abs(lean) * 4;
+      const tauntHip = { x: lean * 5, y: neutral.hip.y + dip };
+      const tauntNeckY = neutral.neck.y + dip;
+      const shoulderY = tauntNeckY + (tauntHip.y - tauntNeckY) * 0.3;
+      const tauntFootL = { x: -8 - bendL * 4, y: neutral.legL.y };
+      const tauntFootR = { x: 8 + bendR * 4, y: neutral.legR.y };
+      const tauntKneeL = lerpPoint(lerpPoint(tauntHip, tauntFootL, 0.5), { x: tauntHip.x - 9, y: tauntHip.y + 2 }, bendL);
+      const tauntKneeR = lerpPoint(lerpPoint(tauntHip, tauntFootR, 0.5), { x: tauntHip.x + 9, y: tauntHip.y + 2 }, bendR);
+      const tauntArmL = { x: tauntHip.x - 15, y: shoulderY - lean * 1.5 };
+      const tauntArmR = { x: tauntHip.x + 15, y: shoulderY + lean * 1.5 };
+
+      const t = this.tauntAmt;
+      const swayHip = lerpPoint(neutral.hip, tauntHip, t);
+      const swayHeadCx = swayHip.x + lean * 1.2 * t;
+      const swayNeckX = swayHip.x;
+      const swayDip = dip * t;
+      const swayArmL = lerpPoint(neutral.armL, tauntArmL, t);
+      const swayArmR = lerpPoint(neutral.armR, tauntArmR, t);
+      const swayKneeL = lerpPoint({ x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 }, tauntKneeL, t);
+      const swayKneeR = lerpPoint({ x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 }, tauntKneeR, t);
+      const swayFootL = lerpPoint(neutral.legL, tauntFootL, t);
+      const swayFootR = lerpPoint(neutral.legR, tauntFootR, t);
       // あぐら風: 膝を左右に大きく開き、足先は逆に体の中心近くまで寄せる(実エディタ: src/pose.ts と同じ値)
       const sitHip = { x: neutral.hip.x, y: neutral.hip.y + 16 };
       const sitArmL = { x: -10, y: 4 };
@@ -403,9 +421,9 @@ export class DemoStickmanState {
       hip.x = lerp(swayHip.x, sitHip.x, this.sitAmt);
       hip.y = lerp(swayHip.y, sitHip.y, this.sitAmt);
       head.cx = lerp(swayHeadCx, neutral.head.cx, this.sitAmt);
-      head.cy += this.sitAmt * 13;
+      head.cy += lerp(swayDip, 13, this.sitAmt);
       neck.x = lerp(swayNeckX, neutral.neck.x, this.sitAmt);
-      neck.y += this.sitAmt * 13;
+      neck.y += lerp(swayDip, 13, this.sitAmt);
       armL = { x: lerp(swayArmL.x, sitArmL.x, this.sitAmt), y: lerp(swayArmL.y, sitArmL.y, this.sitAmt) };
       armR = { x: lerp(swayArmR.x, sitArmR.x, this.sitAmt), y: lerp(swayArmR.y, sitArmR.y, this.sitAmt) };
       kneeL = { x: lerp(swayKneeL.x, sitKneeL.x, this.sitAmt), y: lerp(swayKneeL.y, sitKneeL.y, this.sitAmt) };
@@ -433,10 +451,10 @@ export class DemoStickmanState {
         : isBase
           ? 0
           : this.jumpPhase === 'anticipate' || this.jumpPhase === 'brace'
-            ? 1.6 + crouchAmt * 2
+            ? 1.6 + crouchAmt * 4.5
             : this.jumpPhase === 'arc'
               ? lerp(1.6, 0.4, arcTuckAmt)
-              : 1.6;
+              : lerp(1.6, 0.2, this.tauntAmt * (1 - this.sitAmt));
 
     // キャレットのフリをしている間だけ点滅させる(実エディタと同じ)
     let blinkOpacity: number | null = null;
