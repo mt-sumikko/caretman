@@ -39,7 +39,9 @@ const BLINK_HALF_MS = 530; // 一般的なキャレットの点滅速度(OSの�
 // (決定版レンダリングでの検証値)
 const TYPING_ELBOW_BEND = 1.5;
 const SELECTING_ELBOW_BEND = 3;
-const DEFAULT_ELBOW_BEND = 2.5;
+const DEFAULT_ELBOW_BEND = 1.6; // 通常時の肘。上向きに曲がりすぎないよう、だらんとした腕に近づけた
+const CROUCH_ELBOW_BEND_BOOST = 2; // 助走/着地の踏ん張り中、肘をさらに曲げて力の入った感じを足す
+const ARC_PEAK_ELBOW_BEND = 0.4; // ジャンプの頂点付近では、腕を伸ばし切った見た目にする
 
 const neutral = {
   head: { cx: 0, cy: -32, r: 6 },
@@ -295,19 +297,22 @@ export class StickmanState {
       footL = { x: neutral.legL.x, y: neutral.legL.y }; // 足は地面に固定(踏ん張り)
       footR = { x: neutral.legR.x, y: neutral.legR.y };
     } else if (this.jumpPhase === 'arc') {
-      // 空中: 膝を曲げて足を引き上げ、地面との間にはっきり余白を作る
+      // 空中: 膝を大きく曲げて足を体の下まで引き上げ、地面との間との距離を脚の長さではなく
+      // 高さ(jumpY)そのもので見せる。腕は逆に、頂点に向かって伸ばし切りながら上げていく
       const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
       const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
-      const tuckKneeL = { x: -6, y: -5 };
-      const tuckKneeR = { x: 6, y: -5 };
-      const tuckFootL = { x: -4, y: 1 };
-      const tuckFootR = { x: 4, y: 1 };
+      const tuckKneeL = { x: -5, y: -7 };
+      const tuckKneeR = { x: 5, y: -7 };
+      const tuckFootL = { x: -3, y: -2 };
+      const tuckFootR = { x: 3, y: -2 };
       kneeL = { x: lerp(standKneeL.x, tuckKneeL.x, arcTuckAmt), y: lerp(standKneeL.y, tuckKneeL.y, arcTuckAmt) };
       kneeR = { x: lerp(standKneeR.x, tuckKneeR.x, arcTuckAmt), y: lerp(standKneeR.y, tuckKneeR.y, arcTuckAmt) };
       footL = { x: lerp(neutral.legL.x, tuckFootL.x, arcTuckAmt), y: lerp(neutral.legL.y, tuckFootL.y, arcTuckAmt) };
       footR = { x: lerp(neutral.legR.x, tuckFootR.x, arcTuckAmt), y: lerp(neutral.legR.y, tuckFootR.y, arcTuckAmt) };
-      armL = { x: neutral.armL.x, y: neutral.armL.y };
-      armR = { x: neutral.armR.x, y: neutral.armR.y };
+      const reachArmL = { x: -8, y: -38 };
+      const reachArmR = { x: 8, y: -38 };
+      armL = { x: lerp(neutral.armL.x, reachArmL.x, arcTuckAmt), y: lerp(neutral.armL.y, reachArmL.y, arcTuckAmt) };
+      armR = { x: lerp(neutral.armR.x, reachArmR.x, arcTuckAmt), y: lerp(neutral.armR.y, reachArmR.y, arcTuckAmt) };
     } else if (this.throwActive) {
       // 両手を画面左に寄せて掴み、片足を前に踏み込みながら両手ごと画面右へ振り抜く
       const grabL = { x: -15, y: -12 };
@@ -501,16 +506,29 @@ export class StickmanState {
       footR = { x: lerp(swayFootR.x, sitFootR.x, this.sitAmt), y: lerp(swayFootR.y, sitFootR.y, this.sitAmt) };
     }
 
-    // ジャンプの跳ね上がり(jumpY)・変換確定ホップ(hopY)はどの状態の上にも重ねる
+    // ジャンプの跳ね上がり(jumpY)・変換確定ホップ(hopY)はどの状態の上にも重ねる。
+    // 足にもjumpYを足しているのは、体だけ浮いて脚が地面に取り残されたように伸びて見えるのを防ぐため
+    // (跳んでいる間は脚を含めた体全体が一緒に浮いて見えるようにし、地面との距離は高さそのもので見せる)
     head.cy += jumpY + hopY + comboHopY;
     neck.y += jumpY + hopY + comboHopY;
     hip.y += jumpY + hopY + comboHopY;
     armL.y += jumpY + hopY + comboHopY;
     armR.y += jumpY + hopY + comboHopY;
-    footL.y += (hopY + comboHopY) * 0.4;
-    footR.y += (hopY + comboHopY) * 0.4;
+    kneeL.y += jumpY;
+    kneeR.y += jumpY;
+    footL.y += jumpY + (hopY + comboHopY) * 0.4;
+    footR.y += jumpY + (hopY + comboHopY) * 0.4;
 
-    const elbowBend = isTyping ? TYPING_ELBOW_BEND : isSelecting ? SELECTING_ELBOW_BEND : DEFAULT_ELBOW_BEND;
+    // 助走/着地の踏ん張り中は肘をさらに曲げ、ジャンプの頂点に近づくほど腕を伸ばし切る
+    const elbowBend = isTyping
+      ? TYPING_ELBOW_BEND
+      : isSelecting
+        ? SELECTING_ELBOW_BEND
+        : this.jumpPhase === 'anticipate' || this.jumpPhase === 'brace'
+          ? DEFAULT_ELBOW_BEND + crouchAmt * CROUCH_ELBOW_BEND_BOOST
+          : this.jumpPhase === 'arc'
+            ? lerp(DEFAULT_ELBOW_BEND, ARC_PEAK_ELBOW_BEND, arcTuckAmt)
+            : DEFAULT_ELBOW_BEND;
 
     // キャレットのフリをしている間だけ、実際のキャレットらしく一定速度で点滅させる
     // (フォーカスが外れている間は不透明度をunfocused側の演出に譲り、ここでは制御しない)

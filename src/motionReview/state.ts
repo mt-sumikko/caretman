@@ -209,18 +209,22 @@ export class DemoStickmanState {
       footL = { x: neutral.legL.x, y: neutral.legL.y };
       footR = { x: neutral.legR.x, y: neutral.legR.y };
     } else if (this.jumpPhase === 'arc') {
+      // 空中: 膝を大きく曲げて足を体の下まで引き上げ、地面との距離は脚の長さでなく高さ(jumpY)で見せる。
+      // 腕は逆に、頂点に向かって伸ばし切りながら上げていく(実エディタ: src/pose.ts と同じ値)
       const standKneeL = { x: neutral.legL.x / 2, y: (neutral.hip.y + neutral.legL.y) / 2 };
       const standKneeR = { x: neutral.legR.x / 2, y: (neutral.hip.y + neutral.legR.y) / 2 };
-      const tuckKneeL = { x: -6, y: -5 };
-      const tuckKneeR = { x: 6, y: -5 };
-      const tuckFootL = { x: -4, y: 1 };
-      const tuckFootR = { x: 4, y: 1 };
+      const tuckKneeL = { x: -5, y: -7 };
+      const tuckKneeR = { x: 5, y: -7 };
+      const tuckFootL = { x: -3, y: -2 };
+      const tuckFootR = { x: 3, y: -2 };
       kneeL = { x: lerp(standKneeL.x, tuckKneeL.x, arcTuckAmt), y: lerp(standKneeL.y, tuckKneeL.y, arcTuckAmt) };
       kneeR = { x: lerp(standKneeR.x, tuckKneeR.x, arcTuckAmt), y: lerp(standKneeR.y, tuckKneeR.y, arcTuckAmt) };
       footL = { x: lerp(neutral.legL.x, tuckFootL.x, arcTuckAmt), y: lerp(neutral.legL.y, tuckFootL.y, arcTuckAmt) };
       footR = { x: lerp(neutral.legR.x, tuckFootR.x, arcTuckAmt), y: lerp(neutral.legR.y, tuckFootR.y, arcTuckAmt) };
-      armL = { x: neutral.armL.x, y: neutral.armL.y };
-      armR = { x: neutral.armR.x, y: neutral.armR.y };
+      const reachArmL = { x: -8, y: -38 };
+      const reachArmR = { x: 8, y: -38 };
+      armL = { x: lerp(neutral.armL.x, reachArmL.x, arcTuckAmt), y: lerp(neutral.armL.y, reachArmL.y, arcTuckAmt) };
+      armR = { x: lerp(neutral.armR.x, reachArmR.x, arcTuckAmt), y: lerp(neutral.armR.y, reachArmR.y, arcTuckAmt) };
     } else if (this.throwActive) {
       const grabL = { x: -15, y: -12 };
       const grabR = { x: -12, y: -10 };
@@ -408,15 +412,29 @@ export class DemoStickmanState {
       footR = { x: lerp(swayFootR.x, sitFootR.x, this.sitAmt), y: lerp(swayFootR.y, sitFootR.y, this.sitAmt) };
     }
 
+    // 足にもjumpYを足しているのは、体だけ浮いて脚が地面に取り残されたように伸びて見えるのを防ぐため
     head.cy += jumpY + hopY;
     neck.y += jumpY + hopY;
     hip.y += jumpY + hopY;
     armL.y += jumpY + hopY;
     armR.y += jumpY + hopY;
-    footL.y += hopY * 0.4;
-    footR.y += hopY * 0.4;
+    kneeL.y += jumpY;
+    kneeR.y += jumpY;
+    footL.y += jumpY + hopY * 0.4;
+    footR.y += jumpY + hopY * 0.4;
 
-    const elbowBend = isTyping ? 1.5 : isSelecting ? 3 : isBase ? 0 : 2.5;
+    // 助走/着地の踏ん張り中は肘をさらに曲げ、ジャンプの頂点に近づくほど腕を伸ばし切る(実エディタと同じ)
+    const elbowBend = isTyping
+      ? 1.5
+      : isSelecting
+        ? 3
+        : isBase
+          ? 0
+          : this.jumpPhase === 'anticipate' || this.jumpPhase === 'brace'
+            ? 1.6 + crouchAmt * 2
+            : this.jumpPhase === 'arc'
+              ? lerp(1.6, 0.4, arcTuckAmt)
+              : 1.6;
 
     // キャレットのフリをしている間だけ点滅させる(実エディタと同じ)
     let blinkOpacity: number | null = null;
