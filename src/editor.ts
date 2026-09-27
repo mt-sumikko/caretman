@@ -3,6 +3,18 @@ import { StickmanRenderer, type RendererElements } from './render';
 import type { Pose } from './types';
 import { delay } from './utils';
 
+/**
+ * このファイルの役割(ざっくり):
+ * 本文の入力欄(contenteditableなdiv)を実際に操作するクラス。
+ * - キー入力・クリック・選択・貼り付けなどのDOMイベントを監視し、
+ *   「今どんな操作があったか」をpose.ts(StickmanState)に伝える
+ * - キャレット(文字入力位置)の座標を取得し、棒人間の表示位置(left/top)を
+ *   その都度計算してCSSで動かす
+ * - 一定間隔(毎フレーム/40ms)で「今のポーズ」を計算させ、render.tsに描画を依頼する
+ * 「どう動くべきか(ポーズの座標そのもの)」はpose.tsが、「実際に画面へ描く」のはrender.tsが担当していて、
+ * このファイルはその橋渡し役(入力の監視 + 位置決め)にあたる。
+ */
+
 const JITTER_INTERVAL = 40;
 const FIGURE_RATIO = 30 / 44; // 幅:高さの比率(元デザインを踏襲)
 const BASE_HEIGHT_MULT = 1.35; // フォントサイズに対する基準倍率(scale=1の時)
@@ -144,6 +156,8 @@ export class CaretmanEditor {
     this.updateFigurePosition();
   }
 
+  /** 導入デモ専用: 1文字だけ、今のキャレット位置にDOMを直接操作して挿入する
+   *  (デモ用の自動タイピングなので、貼り付け処理のようなUndo履歴への配慮は不要) */
   private insertTextAtCaret(text: string): void {
     const sel = window.getSelection();
     const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
@@ -224,9 +238,11 @@ export class CaretmanEditor {
     return rect;
   }
 
-  private currentFigureSize(): { width: number; height: number } {
-    const fontSize = parseFloat(getComputedStyle(this.editor).fontSize) || 20;
-    const height = fontSize * BASE_HEIGHT_MULT * this.figureScale;
+  /** 棒人間の表示サイズ(幅・高さ)をフォントサイズから計算する。呼び出し側が既にフォントサイズを
+   *  取得済みなら引数で渡せる(getComputedStyleの呼び出し回数を増やさないため) */
+  private currentFigureSize(fontSize?: number): { width: number; height: number } {
+    const fs = fontSize ?? (parseFloat(getComputedStyle(this.editor).fontSize) || 20);
+    const height = fs * BASE_HEIGHT_MULT * this.figureScale;
     const width = height * FIGURE_RATIO;
     return { width, height };
   }
@@ -263,7 +279,10 @@ export class CaretmanEditor {
     const rect = this.getCaretRect();
     if (!rect) return;
     const wrapRect = this.wrap.getBoundingClientRect();
-    const { width, height } = this.currentFigureSize();
+    // フォントサイズはこの後の計算で何度も使うため、ここで一度だけ取得しておく
+    // (getComputedStyleは画面の再計算を伴いうるので、呼び出し回数を減らしておきたい)
+    const fontSize = parseFloat(getComputedStyle(this.editor).fontSize) || 20;
+    const { width, height } = this.currentFigureSize(fontSize);
     const x = rect.left - wrapRect.left;
     const y = rect.bottom - wrapRect.top;
 
@@ -289,7 +308,6 @@ export class CaretmanEditor {
 
     // 同一行内での大きな横移動(Home/End・複数文字ジャンプ・クリックでの遠距離移動・IME変換確定など)
     // を検出して小さいホップを発火する。通常の1文字ずつのタイピングは閾値未満なので歩行のまま
-    const fontSize = parseFloat(getComputedStyle(this.editor).fontSize) || 20;
     const hopDistanceThreshold = fontSize * 1.5;
     let isHop = false;
     if (
@@ -317,6 +335,9 @@ export class CaretmanEditor {
   }
 
   private bindEvents(): void {
+    // 何かしら文字が増減した時(打鍵・削除・貼り付け・Undo/Redoなど)に毎回呼ばれるイベント。
+    // ここで「増えたか減ったか」を判定して、削除なら放り投げモーションを発火させている
+    // (貼り付けは下のpasteイベントで個別に処理するので、ここでは扱わない)
     this.editor.addEventListener('input', (e) => {
       const inputEvent = e as InputEvent;
       this.state.recordActivity(performance.now());
@@ -324,17 +345,28 @@ export class CaretmanEditor {
       const isDelete = inputEvent.inputType?.startsWith('delete') && !inputEvent.isComposing;
       // Undo/Redoはinputtype自体では削除か追加か分からないので、文字数の増減で判定する
       const isHistoryDelete = inputEvent.inputType?.startsWith('history') && newLength < this.lastTextLength;
-      const isPaste = inputEvent.inputType?.startsWith('insertFromPaste') && !inputEvent.isComposing;
       if (isDelete || isHistoryDelete) {
         const deletedLength = Math.max(1, this.lastTextLength - newLength);
         this.state.triggerThrow(performance.now(), deletedLength);
-      } else if (isPaste) {
-        const pastedLength = Math.max(1, newLength - this.lastTextLength);
-        this.state.triggerPaste(performance.now(), pastedLength);
       }
       this.lastTextLength = newLength;
       this.updateFigurePosition();
       this.onTextChanged?.();
+    });
+
+    // 貼り付け: ブラウザ標準の挙動に任せると、コピー元(Wordやwebページなど)の文字装飾や
+    // HTMLタグまでそのまま貼り付けられてしまう。このエディタは書式を持たないプレーンテキスト
+    // 前提のツールなので、貼り付けはいったん止めて、テキストだけを自前で挿入し直す。
+    // 挿入にはdocument.execCommandという少し古いAPIを使っているが、これを使うと
+    // ブラウザ標準のUndo(Ctrl+Z)の履歴にもちゃんと積まれるため、あえて採用している。
+    this.editor.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = e.clipboardData?.getData('text/plain');
+      if (!text) return; // 画像など文字を含まないものが貼り付けられた場合は何もしない
+      const beforeLength = this.editor.textContent?.length ?? 0;
+      document.execCommand('insertText', false, text);
+      const afterLength = this.editor.textContent?.length ?? 0;
+      this.state.triggerPaste(performance.now(), Math.max(1, afterLength - beforeLength));
     });
 
     this.editor.addEventListener('pointerdown', () => {

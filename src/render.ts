@@ -3,6 +3,16 @@ import type { RoughSVG } from 'roughjs/bin/svg';
 import { jitter } from './utils';
 import type { Point, Pose } from './types';
 
+/**
+ * このファイルの役割(ざっくり):
+ * pose.tsが計算した座標(Pose)を受け取って、実際にSVGへ絵として描くクラス。
+ * 描き方は2種類あり、どちらを使うかは呼び出し側(useTexture引数)で切り替える。
+ * - 通常時(rough.js): 座標をわざとランダムに少しズラして、手描き風のガタつきを出す。
+ *   線が毎回微妙に違う形になるので、鉛筆で描いたような質感になる。
+ * - フォールバック(clean-group): rough.jsが使えない環境向けの、まっすぐな線での描画。
+ * 座標そのものを決めているのはpose.tsで、このファイルは「その座標をどう絵にするか」だけを担当する。
+ */
+
 const JITTER_AMOUNT = 0.5;
 
 // rough.js: 比較検証ツール(5倍スケール)で調整した値を、このプロトタイプの座標系(1/5)に換算した値

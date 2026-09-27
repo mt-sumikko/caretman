@@ -1,3 +1,6 @@
+// このファイルは型定義だけをまとめたもの(実際の処理は書かれていない)。
+// pose.tsとrender.tsの間で「棒人間の姿勢」をやり取りする時の形をここで決めている。
+
 export interface Point {
   x: number;
   y: number;

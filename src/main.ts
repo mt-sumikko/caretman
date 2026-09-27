@@ -5,6 +5,20 @@ import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
 import { Autosaver, contentToHtml, loadSavedContent, shouldShowAutosaveNotice } from './autosave';
 import { delay } from './utils';
 
+/**
+ * このファイルの役割(ざっくり):
+ * ページが読み込まれた時に最初に実行される、いわば「起動処理」をまとめたファイル。
+ * index.html内のボタンや表示エリアをJSから掴んで、それぞれに動作を紐付けている。
+ * - CaretmanEditor(editor.ts)を作って本文の入力欄として起動する
+ * - 前回の続きがあれば復元し、なければ初回デモを再生する
+ * - 自動保存(autosave.ts)を仕込み、初回だけ案内トーストを出す
+ * - .txt/.mdダウンロードボタン、SPの共有/ダウンロードボタンにクリック時の動作を割り当てる
+ * - 開発中だけ(npm run dev)デバッグパネルを読み込む
+ * ここに書かれているのは「画面のどの部品が押されたら何をするか」の配線であり、
+ * 実際の細かい処理(保存・ダウンロード等)はそれぞれ別ファイルの関数を呼び出しているだけ。
+ */
+
+/** id指定でDOM要素を取得するための小さなヘルパー。見つからなければ分かりやすいエラーで落とす */
 function requireEl<T extends Element>(id: string): T {
   const el = document.getElementById(id);
   if (!el) throw new Error(`#${id} が見つかりません`);

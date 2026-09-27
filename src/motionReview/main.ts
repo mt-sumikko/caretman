@@ -2,6 +2,14 @@ import './style.css';
 import { DemoStickmanState, DEMO_STATES, type DemoState } from './state';
 import { StickmanRenderer } from '../render';
 
+/**
+ * このファイルの役割(ざっくり):
+ * motion-review.html(本番のエディタとは別の、モーション確認専用ページ)の起動処理。
+ * 実際の入力欄はなく、ボタンを押すと「打っている」「選択中」などの状態を強制的に
+ * 切り替えられるようになっていて、各モーションの見た目を単体で確認・調整するための
+ * 開発者向けツール。本番ビルドの本体(index.html)からは読み込まれない。
+ */
+
 function requireEl<T extends Element>(id: string): T {
   const el = document.getElementById(id);
   if (!el) throw new Error(`#${id} が見つかりません`);

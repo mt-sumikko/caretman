@@ -1,10 +1,16 @@
+/* このファイルの役割(ざっくり): 本体ページ(index.html)全体の見た目。
+   色は:rootに変数としてまとめてあり、@media (prefers-color-scheme: dark) の中で
+   ダークモード用の値に差し替えている(JSでの出し分けはしていない)。 */
+
 :root {
   --ink: #2c2320;
   --bg: #faf8f3;
   --menu-bg: #fafafa;
   --panel-bg: #fafaf9;
   --divider: rgba(44, 35, 32, 0.15);
-  --ink-muted: rgba(44, 35, 32, 0.6);
+  /* footerのリンクなど、控えめに見せたい文字色。WCAG AAの文字コントラスト基準(4.5:1)を
+     満たす濃さにしてある(0.6だと背景色との組み合わせでわずかに基準を下回っていたため0.68に調整) */
+  --ink-muted: rgba(44, 35, 32, 0.68);
 }
 
 @media (prefers-color-scheme: dark) {
