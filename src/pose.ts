@@ -29,7 +29,7 @@ const THROW_DURATION_MAX = 650;
 const THROW_DURATION_PER_CHAR = 12; // 削除した文字数が多いほど、放り投げの余韻を長くする
 const PASTE_DURATION_BASE = 220;
 const PASTE_DURATION_MAX = 520;
-const PASTE_DURATION_PER_CHAR = 12; // 貼り付けた文字量が多いほど、受け止める動作の余韻を長くする(放り投げと対称)
+const PASTE_DURATION_PER_CHAR = 12; // 貼り付けた文字量が多いほど、押し込む動作の余韻を長くする(放り投げと対称)
 export const HOP_DURATION = 240; // 同一行内で大きく横移動した時の「複数文字ホップ」。editor.tsの横移動アニメもこの長さに揃える
 const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
 const SIT_SPEED = 0.05; // 座り込みへの遷移速度
@@ -78,6 +78,7 @@ export class StickmanState {
   private throwStart = 0;
   private throwDuration = THROW_DURATION_BASE;
   private pasteActive = false;
+  private pasteLineJump = false; // 貼り付けで行をまたいだ場合、フルジャンプの代わりに小さい跳ねを重ねる(放り投げと同じ)
   private pasteStart = 0;
   private pasteDuration = PASTE_DURATION_BASE;
   private hopActive = false;
@@ -124,6 +125,10 @@ export class StickmanState {
     return this.throwActive;
   }
 
+  isPasteActive(): boolean {
+    return this.pasteActive;
+  }
+
   triggerJumpAnticipate(now: number): void {
     this.jumpPhase = 'anticipate';
     this.anticipateStart = now;
@@ -143,14 +148,19 @@ export class StickmanState {
     this.throwLineJump = true;
   }
 
-  /** pastedLengthが大きいほど、受け止める動作の余韻(継続時間)を長くする */
+  /** pastedLengthが大きいほど、押し込む動作の余韻(継続時間)を長くする */
   triggerPaste(now: number, pastedLength = 1): void {
     this.pasteActive = true;
+    this.pasteLineJump = false;
     this.pasteStart = now;
     this.pasteDuration = Math.min(
       PASTE_DURATION_MAX,
       PASTE_DURATION_BASE + Math.max(0, pastedLength - 1) * PASTE_DURATION_PER_CHAR,
     );
+  }
+
+  markPasteLineJump(): void {
+    this.pasteLineJump = true;
   }
 
   /** 同一行内での大きな横移動(Home/End・単語単位の移動など)で発火する「複数文字ホップ」。dirは移動方向(正=右) */
@@ -236,10 +246,14 @@ export class StickmanState {
       }
     }
 
-    // 貼り付けた時の「かがんで受け止める」ジェスチャー(放り投げと対称)
+    // 貼り付けた時の「全力で押し込む」構え
     if (this.pasteActive) {
       const pasteProgress = Math.min(1, (now - this.pasteStart) / this.pasteDuration);
-      if (pasteProgress >= 1) this.pasteActive = false;
+      if (this.pasteLineJump) comboHopY = -Math.sin(pasteProgress * Math.PI) * 10;
+      if (pasteProgress >= 1) {
+        this.pasteActive = false;
+        this.pasteLineJump = false;
+      }
     }
     const isPasting = this.pasteActive && !inJumpSeq && !this.throwActive;
 

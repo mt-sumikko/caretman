@@ -92,20 +92,25 @@ export class CaretmanEditor {
     this.onTextChanged = cb;
   }
 
-  /** 保存されていた内容を復元し、キャレットを末尾に置く */
+  /** 保存されていた内容を復元し、キャレットを末尾(最後の行の中)に置いて、棒人間もそこへ移す */
   restoreContent(html: string): void {
     this.editor.innerHTML = html;
     this.lastTextLength = this.editor.textContent?.length ?? 0;
     try {
       const range = document.createRange();
-      range.selectNodeContents(this.editor);
+      range.selectNodeContents(this.editor.lastChild ?? this.editor);
       range.collapse(false);
+      this.moveIntoLine(range);
       const sel = window.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(range);
     } catch {
       // 復元時のキャレット設置に失敗しても致命的ではないので無視する
     }
+    // 復元による位置の変化は「移動」ではないので、ジャンプ/ホップ扱いにしないよう前回位置を忘れてから合わせる
+    this.lastLineY = null;
+    this.lastCaretX = null;
+    this.updateFigurePosition();
   }
 
   /** デバッグ用: 5秒後に「5分あきらめ経過」状態に到達させる */
@@ -226,10 +231,14 @@ export class CaretmanEditor {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return null;
     const liveRange = sel.getRangeAt(0);
+    // エディタの外をクリックすると選択位置もエディタの外へ移る。エディタへ戻る時はクリック位置に
+    // キャレットが置かれるより先にfocusイベントが来るので、その瞬間の「外の位置」は測らない
+    if (!this.editor.contains(liveRange.startContainer)) return null;
     const range = liveRange.cloneRange();
     // IME変換中のブラウザは、選択範囲を「入力中の文字列の末尾」と「入力中の文字列全体」の間で行き来させる。
     // 通常どおり範囲の先頭を測ると末尾⇔先頭を往復して大きく動いたように見えるため、変換中は末尾で測る
     range.collapse(!this.state.isComposing());
+    this.moveIntoLine(range);
     const rects = range.getClientRects();
     if (rects.length > 0) return rects[0];
     // 下の「目印を一時的に差し込んで測る」方法は、変換中に使うと入力中の文字列を壊しかねないので使わない
@@ -243,6 +252,30 @@ export class CaretmanEditor {
     parent?.removeChild(marker);
     parent?.normalize();
     return rect;
+  }
+
+  /**
+   * 本文は1行ごとに<div>で包まれている。位置が「エディタ直下の、行(<div>)と行の間」を指していたり、
+   * 行末の改行用<br>の後ろを指していたりすると、どの行にも属さない位置として測られて高さがずれるので、
+   * その行の中の位置に置き直す
+   */
+  private moveIntoLine(range: Range): void {
+    if (range.startContainer === this.editor) {
+      const next = this.editor.childNodes[range.startOffset];
+      const prev = this.editor.childNodes[range.startOffset - 1];
+      if (next?.nodeName === 'DIV') {
+        range.setStart(next, 0);
+      } else if (prev?.nodeName === 'DIV') {
+        range.setStart(prev, prev.childNodes.length);
+      }
+      range.collapse(true);
+    }
+    const container = range.startContainer;
+    const before = container.childNodes[range.startOffset - 1];
+    if (before?.nodeName === 'BR' && range.startOffset === container.childNodes.length) {
+      range.setStart(container, range.startOffset - 1);
+      range.collapse(true);
+    }
   }
 
   /** 棒人間の表示サイズ(幅・高さ)をフォントサイズから計算する。呼び出し側が既にフォントサイズを
@@ -306,6 +339,9 @@ export class CaretmanEditor {
       if (this.state.isThrowActive()) {
         // 削除で行が結合した場合: フルの助走→跳躍→着地ではなく、放り投げに小さい跳ねを重ねた簡易版にする
         this.state.markThrowLineJump();
+      } else if (this.state.isPasteActive()) {
+        // 複数行の貼り付けも同様に、貼り付けポーズのまま小さく跳ねるだけにする
+        this.state.markPasteLineJump();
       } else {
         this.state.triggerJumpAnticipate(performance.now());
         return; // 位置はまだ動かさず、踏み込みが終わってから移動する
@@ -320,6 +356,7 @@ export class CaretmanEditor {
     if (
       moveKind !== 'jump' &&
       !this.state.isThrowActive() &&
+      !this.state.isPasteActive() && // 貼り付けで大きく動くのは貼り付けポーズで表現する
       !this.state.isComposing() && // 変換中の文字数の増減・文節の移動は「打っている」の一部なので歩きのまま
       this.lastCaretX !== null &&
       Math.abs(x - this.lastCaretX) >= hopDistanceThreshold
@@ -371,10 +408,10 @@ export class CaretmanEditor {
       e.preventDefault();
       const text = e.clipboardData?.getData('text/plain');
       if (!text) return; // 画像など文字を含まないものが貼り付けられた場合は何もしない
-      const beforeLength = this.editor.textContent?.length ?? 0;
+      // insertTextを呼ぶとその場でinputイベント→位置更新まで走るので、貼り付けポーズはその前に開始しておく
+      // (でないと、行をまたぐ貼り付けが普通の改行ジャンプとして扱われてしまう)
+      this.state.triggerPaste(performance.now(), Array.from(text).length);
       document.execCommand('insertText', false, text);
-      const afterLength = this.editor.textContent?.length ?? 0;
-      this.state.triggerPaste(performance.now(), Math.max(1, afterLength - beforeLength));
     });
 
     this.editor.addEventListener('pointerdown', () => {
@@ -384,13 +421,16 @@ export class CaretmanEditor {
 
     this.editor.addEventListener('keydown', (e) => {
       this.cancelIntroDemo();
-      if (e.key === 'Enter' && !e.isComposing) {
+      // SafariはIMEの変換確定のEnterを、isComposing=false・keyCode=229の「普通のEnter」として送ってくるので
+      // keyCodeでも除外する(でないと確定のたびに、その場で空振りジャンプしてしまう)
+      if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
         this.state.triggerJumpAnticipate(performance.now());
       }
     });
 
+    // キーを離した時は位置合わせだけ行う。「打っている(歩き)」にするのは、実際に文字が変わった時(input)と
+    // キャレットが動いた時(selectionchange)だけにする(Shift単体やCtrl+Cのコピーで歩き出さないように)
     this.editor.addEventListener('keyup', () => {
-      this.state.recordActivity(performance.now());
       this.updateFigurePosition();
     });
 
