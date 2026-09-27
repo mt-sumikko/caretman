@@ -228,8 +228,9 @@ export class StickmanState {
       this.armRaiseAmt = armRaiseTarget;
     }
 
-    // 文字の間にいる時だけ、体を極限まで薄くする
-    this.squashAmt += ((opts.betweenChars ? 1 : 0) - this.squashAmt) * SQUASH_SPEED;
+    // 待機中に文字の間にいる時だけ、体を極限まで薄くする。頭の細さもこの値で決まる(render.ts)ので、
+    // 待機以外(煽り・歩きなど腕脚を広げる動き)では潰さない(でないと顔だけ細くなる)
+    this.squashAmt += ((opts.betweenChars && isShortIdle ? 1 : 0) - this.squashAmt) * SQUASH_SPEED;
 
     // 助走の踏み込み(anticipate) → 跳躍(arc) → 着地の踏ん張り(brace)
     let jumpY = 0;
