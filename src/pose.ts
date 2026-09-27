@@ -20,6 +20,7 @@ const HOP_DURATION = 180; // 同一行内で大きく移動した時の小さい
 const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
 const SIT_SPEED = 0.05; // 座り込みへの遷移速度
 const SQUASH_SPEED = 0.15; // 文字の間にいる時に体を薄くする速度
+const BLINK_HALF_MS = 530; // 一般的なキャレットの点滅速度(OSの既定値目安)
 
 // 肘は「肩と手の中点を少し前へ膨らませる」ことで、なめらかな曲げの制御点として使う
 // (決定版レンダリングでの検証値)
@@ -497,6 +498,14 @@ export class StickmanState {
 
     const elbowBend = isTyping ? TYPING_ELBOW_BEND : isSelecting ? SELECTING_ELBOW_BEND : DEFAULT_ELBOW_BEND;
 
+    // キャレットのフリをしている間だけ、実際のキャレットらしく一定速度で点滅させる
+    // (フォーカスが外れている間は不透明度をunfocused側の演出に譲り、ここでは制御しない)
+    let blinkOpacity: number | null = null;
+    if (isCaretPose && this.focused) {
+      const blinkElapsed = dt - (TYPE_HOLD_MS + CARET_POSE_DELAY_MS);
+      blinkOpacity = Math.floor(blinkElapsed / BLINK_HALF_MS) % 2 === 0 ? 1 : 0;
+    }
+
     return {
       head,
       neck,
@@ -509,6 +518,7 @@ export class StickmanState {
       legR: footR,
       elbowBend,
       squashAmt: this.squashAmt,
+      blinkOpacity,
       status,
     };
   }

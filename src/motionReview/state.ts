@@ -423,6 +423,7 @@ export class DemoStickmanState {
       legR: footR,
       elbowBend,
       squashAmt: this.squashAmt,
+      blinkOpacity: null, // このツールでは点滅は確認対象外
       status: DEMO_STATES.find((s) => s.value === demoState)?.label ?? demoState,
     };
   }

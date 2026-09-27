@@ -23,6 +23,8 @@ export interface Pose {
   elbowBend: number;
   /** 0=通常 / 1=文字の間で潰しきった状態 */
   squashAmt: number;
+  /** キャレットのフリをしている間の点滅用の不透明度(0/1)。該当しない時はnull(CSS側の不透明度に委ねる) */
+  blinkOpacity: number | null;
   /** デバッグパネル表示用の現在の状態名 */
   status: string;
 }

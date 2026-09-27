@@ -187,7 +187,10 @@ export class CaretmanEditor {
     this.updateFigurePosition();
 
     const draw = () => {
-      if (this.currentPose) this.renderer.draw(this.currentPose, this.state.isFocused(), this.textureEnabled);
+      if (!this.currentPose) return;
+      this.renderer.draw(this.currentPose, this.state.isFocused(), this.textureEnabled);
+      // キャレットの点滅表現。該当しない時はCSS側(composing/unfocused等)の不透明度に委ねる
+      this.figure.style.opacity = this.currentPose.blinkOpacity === null ? '' : String(this.currentPose.blinkOpacity);
     };
     setInterval(draw, JITTER_INTERVAL);
 
