@@ -337,13 +337,14 @@ export class DemoStickmanState {
       footL.x = lerp(footL.x, 0, this.squashAmt * 0.9);
       footR.x = lerp(footR.x, 0, this.squashAmt * 0.9);
     } else if (isSelecting) {
-      // 選択ポーズ(仮): 両腕を上げて曲げ、画面右方向を指す。右足は曲げて上げ、左足は伸ばして爪先立ち
-      armL = { x: 16, y: -28 };
-      armR = { x: 20, y: -22 };
-      kneeL = { x: -3, y: 0 };
-      kneeR = { x: 9, y: -3 };
-      footL = { x: -6, y: 6 };
-      footR = { x: 6, y: 1 };
+      // 選択ポーズ(仮/手描き参考画像から): 両腕を揃えて右上へ伸ばし、先端をフックのように曲げる。
+      // 右足は高く曲げて前へ持ち上げ、左足はまっすぐ下ろして接地させる
+      armL = { x: 18, y: -30 };
+      armR = { x: 21, y: -27 };
+      kneeL = { x: -4, y: 0 };
+      kneeR = { x: 11, y: -7 };
+      footL = { x: -5, y: 8 };
+      footR = { x: 9, y: -3 };
     } else if (isPasting) {
       // 貼り付けポーズ(仮): 足先は右側に残したまま、膝だけ左へ入れる。腰を深く屈めて左へ前屈みになる
       hip.x -= 2;
