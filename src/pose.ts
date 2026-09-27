@@ -404,16 +404,17 @@ export class StickmanState {
       const a = hopLeanAmt;
       hip.x += d * a;
       hip.y += a;
-      neck.x += d * 6 * a;
-      neck.y += 1.5 * a;
-      head.cx += d * 7.8 * a;
-      head.cy += 1.3 * a;
+      // 胴は約28°前傾。後ろ脚と胴が1本の斜めの線に揃うようにして、飛び出す勢いを出す
+      neck.x += d * 9.4 * a;
+      neck.y += 3.1 * a;
+      head.cx += d * 12.4 * a; // 頭は胴の延長線上
+      head.cy += 3.4 * a;
       const shoulder = { x: neck.x + (hip.x - neck.x) * 0.3, y: neck.y + (hip.y - neck.y) * 0.3 }; // render.tsの肩と同じ位置
       const leadHand = lerpPoint(d > 0 ? neutral.armR : neutral.armL, { x: shoulder.x + d * 2.5, y: shoulder.y + 3.5 }, a);
       const leadElbowAuto = { x: (shoulder.x + leadHand.x) / 2, y: (shoulder.y + leadHand.y) / 2 + DEFAULT_ELBOW_BEND };
       const leadElbow = lerpPoint(leadElbowAuto, { x: shoulder.x + d * 8.5, y: shoulder.y + 0.3 }, a);
       const trailHand = lerpPoint(d > 0 ? neutral.armL : neutral.armR, { x: shoulder.x - d * 16, y: shoulder.y - 0.5 }, a);
-      const backFoot = lerpPoint(d > 0 ? neutral.legL : neutral.legR, { x: hip.x - d * 10, y: neutral.legL.y }, a);
+      const backFoot = lerpPoint(d > 0 ? neutral.legL : neutral.legR, { x: hip.x - d * 8.5, y: neutral.legL.y }, a);
       const backKnee = lerpPoint(hip, backFoot, 0.5);
       const frontFoot = lerpPoint(d > 0 ? neutral.legR : neutral.legL, { x: hip.x + d * 8.5, y: hip.y + 10 }, a);
       const frontKnee = lerpPoint(lerpPoint(hip, frontFoot, 0.5), { x: hip.x + d * 8, y: hip.y + 1 }, a);
