@@ -38,11 +38,12 @@ body {
   min-height: 100%;
 }
 
+/* ダウンロードボタンは、長文でスクロールしても常に右上に見えているよう画面に固定する(SPの丸いボタンも同様) */
 .toolbar {
-  position: absolute;
+  position: fixed;
   top: 0;
-  left: 0;
   right: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -52,7 +53,7 @@ body {
 
 .dl-btn {
   appearance: none;
-  background: transparent;
+  background: var(--bg); /* 固定表示でスクロールした本文の上に重なるので、透けないよう背景色で塗る */
   border: 1px solid var(--ink);
   color: var(--ink);
   border-radius: 2px;
