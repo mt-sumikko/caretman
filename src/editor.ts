@@ -46,6 +46,7 @@ export class CaretmanEditor {
   private lastLineY: number | null = null;
   private lastCaretX: number | null = null;
   private lastTextLength = 0;
+  private lastCompositionData = ''; // 直前のcompositionupdateで届いた入力中の文字列
   private currentPose: Pose | null = null;
   private introDemoActive = false;
   private introDemoCancelled = false;
@@ -405,7 +406,12 @@ export class CaretmanEditor {
     // (貼り付けは下のpasteイベントで個別に処理するので、ここでは扱わない)
     this.editor.addEventListener('input', (e) => {
       const inputEvent = e as InputEvent;
-      this.state.recordActivity(performance.now());
+      // IME入力中・変換確定のinputは操作として数えない(打鍵はcompositionupdateで数えている)。
+      // 数えると、候補を眺めている間にキャレットのフリ(腕上げ)に入った棒人間が、動いてもいないのに
+      // 確定の瞬間に基本ポーズへパッと戻ってしまう
+      if (!inputEvent.isComposing && inputEvent.inputType !== 'insertFromComposition') {
+        this.state.recordActivity(performance.now());
+      }
       const newLength = this.editor.textContent?.length ?? 0;
       // 放り投げは、実際に文字が減った時だけ。空行や行頭でのBackspaceのように改行だけが消えた時は
       // 文字数が変わらないので投げず、ただの移動(同じ行なら歩き、行をまたげば改行ジャンプ)として扱う
@@ -457,13 +463,20 @@ export class CaretmanEditor {
     });
 
     this.editor.addEventListener('compositionstart', () => {
+      this.lastCompositionData = '';
       this.state.setComposing(true);
       this.figure.classList.add('composing');
       this.updatePlaceholder();
     });
 
-    this.editor.addEventListener('compositionupdate', () => {
-      this.state.recordActivity(performance.now());
+    this.editor.addEventListener('compositionupdate', (e) => {
+      // 入力中の文字列が実際に変わった時だけ操作として数える。Chromeは確定の瞬間にも同じ文字列で
+      // compositionupdateを送ってくるので、それまで数えると、候補を眺めている間にキャレットのフリ
+      // (腕上げ)に入っていた棒人間が、動いてもいないのに確定の瞬間に基本ポーズへパッと戻ってしまう
+      if (e.data !== this.lastCompositionData) {
+        this.lastCompositionData = e.data;
+        this.state.recordActivity(performance.now());
+      }
       this.updateFigurePosition();
     });
 
@@ -471,9 +484,9 @@ export class CaretmanEditor {
       this.state.setComposing(false);
       this.figure.classList.remove('composing');
       this.updatePlaceholder();
-      this.state.recordActivity(performance.now());
       // 変換確定専用のモーションはない。変換候補を選んでいる間はその場で待っているので、確定で文字数が
-      // 変わっていれば、ここでの位置合わせで距離に応じて歩き/ホップする(変わらなければ動かず待機へ)
+      // 変わっていれば、ここでの位置合わせで距離に応じて歩き/ホップする(変わらなければ何もせず、
+      // 待機のポーズもそのまま続ける。ここでrecordActivityすると腕上げ中のポーズがパッと戻ってしまう)
       this.updateFigurePosition();
     });
 
@@ -504,8 +517,11 @@ export class CaretmanEditor {
       const sel = window.getSelection();
       // ドラッグ/Shift+矢印/ダブル・トリプルクリックなど、選択範囲がある間は選択ポーズを維持する
       // (IME変換中の文節ハイライトも選択範囲として報告されるが、それは選択操作ではないので除外する)
-      this.state.setSelecting(!!sel && !sel.isCollapsed && !this.state.isComposing());
-      this.state.recordActivity(performance.now());
+      const selecting = !!sel && !sel.isCollapsed && !this.state.isComposing();
+      this.state.setSelecting(selecting);
+      // 操作として数えるのは範囲選択の時だけ。キャレットだけの移動は、実際に動いたかを位置合わせの中で
+      // 判定している(変換確定のように位置が変わらない時まで数えると、待機のポーズがリセットされてしまう)
+      if (selecting) this.state.recordActivity(performance.now());
       this.updateFigurePosition();
     });
   }
