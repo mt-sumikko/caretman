@@ -70,10 +70,9 @@
                   だけ頭などがマスク範囲からはみ出て見えなくなる不具合が起きていた。
                   範囲はviewBoxと同じ(-30 -70 60 100)。ジャンプの頂点では頭がy≒-58まで上がり、
                   放り投げの腕はx≒±22まで出るので、それも覆える広さにしてある。
-                  中に白いrectを敷いているのは、鉛筆テクスチャ画像(pencil-grain-placeholder.png)が
-                  棒人間の立ち姿あたりの40x60の範囲にしか置かれていないため。maskは絵のない
-                  部分(=透明)を「隠す」側に倒すので、rectを敷かないと画像の外に出た瞬間また
-                  見えなくなってしまう。rectで「テクスチャの外側は無地で常に見える」を保証している。
+                  鉛筆テクスチャ画像もこの範囲全体に敷く(縦横比を保ったまま覆うslice)。画像の範囲が
+                  狭いと、その外側は「テクスチャなし=真っ黒な線」になり、ジャンプで頭が境目をまたいだ時に
+                  濃さの差が横線のように見えてしまうため。本番のテクスチャ画像は横3:縦5の比率で作るとよい。
                 -->
                 <mask
                   id="pencil-mask"
@@ -84,14 +83,13 @@
                   height="100"
                   maskContentUnits="userSpaceOnUse"
                 >
-                  <rect x="-30" y="-70" width="60" height="100" fill="#fff" />
                   <image
                     href="/textures/pencil-grain-placeholder.png"
-                    x="-20"
-                    y="-44"
-                    width="40"
-                    height="60"
-                    preserveAspectRatio="none"
+                    x="-30"
+                    y="-70"
+                    width="60"
+                    height="100"
+                    preserveAspectRatio="xMidYMid slice"
                   />
                 </mask>
               </defs>
