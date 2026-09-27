@@ -47,12 +47,16 @@ const FIGURE_RATIO = 30 / 44;
 // 実エディタ(editor.ts)の「フォントサイズ→棒人間の高さ」の計算式と同じ倍率。
 // この値で逆算し、「このサイズは大体何pxの文字に相当するか」を横に並べた文字で確認できるようにする
 const BASE_HEIGHT_MULT = 1.35;
+// 実エディタ(editor.ts)と同じ、「足先を文字のベースラインに揃える」ための下方向オフセット。
+// これが無いと、ボックスの下端(=あ/愛と同じ位置)より上に立ち姿の足があるぶん、棒人間が浮いて見える
+const FOOT_BASELINE_OFFSET_RATIO = 8 / 60;
 
 function applySize(scale: number): void {
   const height = scale * 20;
   const width = height * FIGURE_RATIO;
   figureEl.style.width = `${width}px`;
   figureEl.style.height = `${height}px`;
+  figureEl.style.transform = `translateY(${height * FOOT_BASELINE_OFFSET_RATIO}px)`;
 
   const equivalentFontSize = height / BASE_HEIGHT_MULT;
   sizeRefLeft.style.fontSize = `${equivalentFontSize}px`;
