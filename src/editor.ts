@@ -33,6 +33,7 @@ export class CaretmanEditor {
   private readonly editor: HTMLElement;
   private readonly wrap: HTMLElement;
   private readonly figure: HTMLElement;
+  private readonly figureSvg: SVGSVGElement;
   private readonly state: StickmanState;
   private readonly renderer: StickmanRenderer;
 
@@ -53,6 +54,7 @@ export class CaretmanEditor {
     this.editor = els.editor;
     this.wrap = els.wrap;
     this.figure = els.figure;
+    this.figureSvg = els.renderer.svg;
     this.state = new StickmanState(performance.now());
     this.renderer = new StickmanRenderer(els.renderer);
     if (!this.renderer.roughAvailable) this.textureEnabled = false;
@@ -203,8 +205,9 @@ export class CaretmanEditor {
     const draw = () => {
       if (!this.currentPose) return;
       this.renderer.draw(this.currentPose, this.state.isFocused(), this.textureEnabled);
-      // キャレットの点滅表現。該当しない時はCSS側(composing/unfocused等)の不透明度に委ねる
-      this.figure.style.opacity = this.currentPose.blinkOpacity === null ? '' : String(this.currentPose.blinkOpacity);
+      // キャレットの点滅表現。本物のキャレットのようにパキッと切り替えたいので、opacityのtransition
+      // (変換中/非フォーカス時にじわっと薄くする用)がかかっている外枠(.figure)ではなく、中のsvgで切り替える
+      this.figureSvg.style.opacity = this.currentPose.blinkOpacity === null ? '' : String(this.currentPose.blinkOpacity);
     };
     setInterval(draw, JITTER_INTERVAL);
 

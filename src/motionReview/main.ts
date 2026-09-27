@@ -17,8 +17,11 @@ function requireEl<T extends Element>(id: string): T {
 }
 
 const figureEl = requireEl<HTMLElement>('figure');
-const svgEl = figureEl.querySelector('svg');
-if (!svgEl) throw new Error('#figure 内に svg が見つかりません');
+const svgEl: SVGSVGElement = (() => {
+  const el = figureEl.querySelector('svg');
+  if (!el) throw new Error('#figure 内に svg が見つかりません');
+  return el;
+})();
 
 const renderer = new StickmanRenderer({
   svg: svgEl,
@@ -96,8 +99,8 @@ function loop(now: number): void {
   const pose = state.computePose(now, demoState);
   figureEl.classList.toggle('composing', demoState === 'composing');
   renderer.draw(pose, boilToggle.checked, textureToggle.checked);
-  // キャレットの点滅表現(実エディタと同じ。該当しない時はnullなのでスタイルを外す)
-  figureEl.style.opacity = pose.blinkOpacity === null ? '' : String(pose.blinkOpacity);
+  // キャレットの点滅表現(実エディタと同じくsvg側で切り替えて、パキッと点滅させる)
+  svgEl.style.opacity = pose.blinkOpacity === null ? '' : String(pose.blinkOpacity);
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

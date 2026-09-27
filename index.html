@@ -8,6 +8,38 @@
       name="description"
       content="文字を打つときにチカチカしてる棒の人間のあそび。今日も元気に入力待ち〜"
     />
+    <meta name="theme-color" content="#faf8f3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1b18" media="(prefers-color-scheme: dark)" />
+
+    <!-- アイコン(素材はpublic/に置く: favicon.ico=32x32 / apple-touch-icon.png=180x180) -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!--
+      SNSシェア用(OGP / X)。%VITE_SITE_URL% はビルド時に .env の VITE_SITE_URL(公開URL)に置き換わる。
+      og:image や og:url は https:// から始まる絶対URLでないとSNS側に読んでもらえないため
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="caretman" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:title" content="caretman | 動く棒人間キャレット" />
+    <meta
+      property="og:description"
+      content="文字を打つときにチカチカしてる棒の人間のあそび。今日も元気に入力待ち〜"
+    />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:image" content="%VITE_SITE_URL%/ogp.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="文字の横で入力待ちをする棒人間のキャレット" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="caretman | 動く棒人間キャレット" />
+    <meta
+      name="twitter:description"
+      content="文字を打つときにチカチカしてる棒の人間のあそび。今日も元気に入力待ち〜"
+    />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/ogp.png" />
+    <meta name="twitter:image:alt" content="文字の横で入力待ちをする棒人間のキャレット" />
   </head>
   <body>
     <div class="page">
