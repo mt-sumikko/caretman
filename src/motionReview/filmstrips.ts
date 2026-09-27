@@ -26,7 +26,7 @@ const SPECS: Record<DemoState, StripSpec> = {
   walk: { start: 0, duration: 560, frames: 9, caption: '1周期=左右1歩ずつ(左へ移動する時は左右反転)' },
   longIdle: { start: 2000, duration: 1800, frames: 9, caption: '1周期=左右に1往復' },
   givenUp: { start: 0, duration: 1500, frames: 7, caption: '立ち姿からあぐらへ' },
-  jump: { start: 0, duration: 700, frames: 11, caption: '助走→跳躍→着地' },
+  jump: { start: 0, duration: 470, frames: 11, caption: '助走→跳躍→着地' },
   throw: { start: 0, duration: 380, frames: 11, caption: '溜め→振り抜き→余韻→戻り' },
   hop: { start: 0, duration: 240, frames: 9, caption: '右へ移動する場合(左へは左右反転)' },
   composing: { start: 0, duration: 0, frames: 1, caption: '実際は半透明で表示' },

@@ -20,9 +20,10 @@ const SWING_PERIOD_MS = 1800; // 長い待機(煽り)で左右に体重移動す
 const TAUNT_SPEED = 0.08; // 通常の立ち姿⇔煽りポーズ(腕を真横・広いスタンス)の切り替え速度
 const GIVE_UP_MS = 5 * 60 * 1000; // 5分煽ったら諦めて座る
 export const TYPE_HOLD_MS = 300; // 最後の入力・移動からこの間は「打っている(歩き)」
-const ANTICIPATE_DURATION = 130;
-const JUMP_DURATION = 350;
-const BRACE_DURATION = 220;
+// 改行ジャンプ: 助走→跳躍→着地(合計約0.47秒)。普通のエディタの感覚で待たされないよう、当初の0.7秒から1.5倍速にした
+const ANTICIPATE_DURATION = 87;
+export const JUMP_DURATION = 233; // editor.tsで次の行へ移動するアニメーションもこの長さに揃える
+const BRACE_DURATION = 147;
 const WALK_CYCLE_MS = 560; // 歩行の1周期(左右1歩ずつ)。常に一定で、進む速さは移動そのものの速さで表現する
 const THROW_DURATION_BASE = 380; // 溜め→振り抜き→余韻→戻り、の一連を見せられる長さ
 const THROW_DURATION_MAX = 650;
