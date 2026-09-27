@@ -394,19 +394,22 @@ export class DemoStickmanState {
       footL = { x: -4, y: 7 };
       footR = { x: 4, y: -1 };
     } else if (isPasting) {
-      // 貼り付けポーズ(仮): 足先は右側に残したまま、膝だけ左へ入れる。腰を深く屈めて左へ前屈みになる
-      hip.x -= 2;
+      // 貼り付け: 貼り付けた文字を全力で押し込む構え(棒人間は左向き)。上半身を約40°前傾させて腰を低く落とし、
+      // 両腕を画面左へまっすぐ突き出す。前脚(左)は膝を曲げて踏ん張り、後ろ脚(右)は膝を地面近くまで落として
+      // 足先を画面右へ大きく残し、地面を蹴っている形にする
+      hip.x += 3;
       hip.y += 7;
-      head.cx -= 9;
-      head.cy += 6;
-      neck.x -= 7;
-      neck.y += 6;
-      armL = { x: -19, y: -3 };
-      armR = { x: -16, y: -1 };
-      kneeL = { x: -14, y: 2 };
-      kneeR = { x: -9, y: 3 };
-      footL = { x: -2, y: 8 };
-      footR = { x: 4, y: 8 };
+      neck.x -= 8.6;
+      neck.y += 11.2;
+      head.cx -= 12.8; // 頭は胴の延長線上
+      head.cy += 12.2;
+      armL = { x: -22, y: -13 }; // 頭にかからない高さで、2本の腕を上下に並べる
+      armR = { x: -21, y: -7 };
+      kneeL = { x: -7, y: -1 };
+      footL = { x: -13, y: 8 };
+      kneeR = { x: 7, y: 6 };
+      footR = { x: 15, y: 8 };
+      branchElbowBend = 0.3; // 腕はしっかり伸ばし切る
     } else if (isBase) {
       armL = { x: neutral.armL.x, y: neutral.armL.y };
       armR = { x: neutral.armR.x, y: neutral.armR.y };
