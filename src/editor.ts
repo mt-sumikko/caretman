@@ -227,9 +227,13 @@ export class CaretmanEditor {
     if (!sel || sel.rangeCount === 0) return null;
     const liveRange = sel.getRangeAt(0);
     const range = liveRange.cloneRange();
-    range.collapse(true);
+    // IME変換中のブラウザは、選択範囲を「入力中の文字列の末尾」と「入力中の文字列全体」の間で行き来させる。
+    // 通常どおり範囲の先頭を測ると末尾⇔先頭を往復して大きく動いたように見えるため、変換中は末尾で測る
+    range.collapse(!this.state.isComposing());
     const rects = range.getClientRects();
     if (rects.length > 0) return rects[0];
+    // 下の「目印を一時的に差し込んで測る」方法は、変換中に使うと入力中の文字列を壊しかねないので使わない
+    if (this.state.isComposing()) return null;
 
     const marker = document.createElement('span');
     marker.appendChild(document.createTextNode('​'));
@@ -316,6 +320,7 @@ export class CaretmanEditor {
     if (
       moveKind !== 'jump' &&
       !this.state.isThrowActive() &&
+      !this.state.isComposing() && // 変換中の文字数の増減・文節の移動は「打っている」の一部なので歩きのまま
       this.lastCaretX !== null &&
       Math.abs(x - this.lastCaretX) >= hopDistanceThreshold
     ) {
@@ -440,7 +445,8 @@ export class CaretmanEditor {
       if (document.activeElement !== this.editor) return;
       const sel = window.getSelection();
       // ドラッグ/Shift+矢印/ダブル・トリプルクリックなど、選択範囲がある間は選択ポーズを維持する
-      this.state.setSelecting(!!sel && !sel.isCollapsed);
+      // (IME変換中の文節ハイライトも選択範囲として報告されるが、それは選択操作ではないので除外する)
+      this.state.setSelecting(!!sel && !sel.isCollapsed && !this.state.isComposing());
       this.state.recordActivity(performance.now());
       this.updateFigurePosition();
     });
