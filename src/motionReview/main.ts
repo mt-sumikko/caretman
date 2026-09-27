@@ -53,7 +53,7 @@ const FIGURE_RATIO = 30 / 44;
 const BASE_HEIGHT_MULT = 1.35;
 // 実エディタ(editor.ts)と同じ、「足先を文字のベースラインに揃える」ための下方向オフセット。
 // これが無いと、ボックスの下端(=あ/愛と同じ位置)より上に立ち姿の足があるぶん、棒人間が浮いて見える
-const FOOT_BASELINE_OFFSET_RATIO = 8 / 60;
+const FOOT_BASELINE_OFFSET_RATIO = 2 / 60;
 
 function applySize(scale: number): void {
   const height = scale * 20;
