@@ -2,6 +2,7 @@ import { lerp } from './utils';
 import type { Point, Pose, JumpPhase } from './types';
 
 const LONG_IDLE_MS = 10000;
+const CARET_POSE_DELAY_MS = 3000; // 打つ/歩行の手を止めてから、キャレットのフリ(腕上げ)を始めるまでの間(基本ポーズで繋ぐ)
 const SWING_PERIOD_MS = 2600;
 const GIVE_UP_MS = 5 * 60 * 1000; // 5分煽ったら諦めて座る
 const TYPE_HOLD_MS = 300;
@@ -134,6 +135,8 @@ export class StickmanState {
     const isGivenUp = !inJumpSeq && !isTyping && dt >= LONG_IDLE_MS + GIVE_UP_MS;
     const isLongIdle = !inJumpSeq && !isTyping && !isGivenUp && dt >= LONG_IDLE_MS;
     const isShortIdle = !inJumpSeq && !isTyping && !isGivenUp && !isLongIdle;
+    // 短い待機に入った直後は基本ポーズのまま少し繋ぎ、しばらくしてからキャレットのフリを始める
+    const isCaretPose = isShortIdle && dt >= TYPE_HOLD_MS + CARET_POSE_DELAY_MS;
 
     // 長い待機の体重移動フェーズ(あきらめたら目標0にして自然に静止へ)
     const leanTarget = isLongIdle ? Math.sin((now / SWING_PERIOD_MS) * Math.PI * 2) : 0;
@@ -144,7 +147,7 @@ export class StickmanState {
     this.sitAmt += (sitTarget - this.sitAmt) * SIT_SPEED;
 
     // 腕を上げ直す速度だけ速くする(下ろすのは即座)
-    const armRaiseTarget = isShortIdle ? 1 : 0;
+    const armRaiseTarget = isCaretPose ? 1 : 0;
     if (armRaiseTarget > this.armRaiseAmt) {
       this.armRaiseAmt += (armRaiseTarget - this.armRaiseAmt) * ARM_RISE_SPEED;
     } else {
