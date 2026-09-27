@@ -313,7 +313,7 @@ export class CaretmanEditor {
     }
     this.lastLineY = y;
 
-    // 同一行内での大きな横移動(Home/End・複数文字ジャンプ・クリックでの遠距離移動・IME変換確定など)
+    // 同一行内での大きな横移動(Home/End・単語単位の移動・クリックでの遠距離移動など)
     // を検出して小さいホップを発火する。通常の1文字ずつのタイピングは閾値未満なので歩行のまま
     const hopDistanceThreshold = fontSize * 1.5;
     let isHop = false;
@@ -408,8 +408,8 @@ export class CaretmanEditor {
       this.state.setComposing(false);
       this.figure.classList.remove('composing');
       this.state.recordActivity(performance.now());
-      // 変換確定専用のトリガーは廃止。同一行内の大きな移動を検出する一般ルール(updateFigurePosition内)に
-      // 統合されており、確定で実際に大きく動いた時だけ自然にホップする
+      // 変換確定では特別なモーションは出さない。変換中から入力中の文字の末尾に立って追従しているので、
+      // 確定しても大きな移動にはならず、そのまま歩き→待機へ移る
       this.updateFigurePosition();
     });
 

@@ -30,7 +30,7 @@ const THROW_DURATION_PER_CHAR = 12; // 削除した文字数が多いほど、�
 const PASTE_DURATION_BASE = 220;
 const PASTE_DURATION_MAX = 520;
 const PASTE_DURATION_PER_CHAR = 12; // 貼り付けた文字量が多いほど、受け止める動作の余韻を長くする(放り投げと対称)
-export const HOP_DURATION = 240; // 同一行内で大きく移動した時の小さいホップ(IME変換確定もこれに含まれる)。editor.tsの横移動アニメもこの長さに揃える
+export const HOP_DURATION = 240; // 同一行内で大きく横移動した時の「複数文字ホップ」。editor.tsの横移動アニメもこの長さに揃える
 const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
 const SIT_SPEED = 0.05; // 座り込みへの遷移速度
 const SQUASH_SPEED = 0.15; // 文字の間にいる時に体を薄くする速度
@@ -153,7 +153,7 @@ export class StickmanState {
     );
   }
 
-  /** 同一行内での大きな移動(Home/End・複数文字ジャンプ・IME変換確定など)で発火する小さいホップ */
+  /** 同一行内での大きな横移動(Home/End・単語単位の移動など)で発火する「複数文字ホップ」。dirは移動方向(正=右) */
   triggerHop(now: number, dir: number): void {
     this.hopActive = true;
     this.hopDir = dir >= 0 ? 1 : -1;
@@ -553,7 +553,7 @@ export class StickmanState {
       footR = { x: lerp(swayFootR.x, sitFootR.x, this.sitAmt), y: lerp(swayFootR.y, sitFootR.y, this.sitAmt) };
     }
 
-    // ジャンプの跳ね上がり(jumpY)・変換確定ホップ(hopY)はどの状態の上にも重ねる。
+    // ジャンプの跳ね上がり(jumpY)・複数文字ホップ(hopY)はどの状態の上にも重ねる。
     // 足にもjumpYを足しているのは、体だけ浮いて脚が地面に取り残されたように伸びて見えるのを防ぐため
     // (跳んでいる間は脚を含めた体全体が一緒に浮いて見えるようにし、地面との距離は高さそのもので見せる)
     head.cy += jumpY + hopY + comboHopY;

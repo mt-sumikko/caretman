@@ -15,7 +15,7 @@ const ANTICIPATE_DURATION = 130;
 const JUMP_DURATION = 350;
 const BRACE_DURATION = 220;
 const THROW_DURATION = 380; // 実エディタのTHROW_DURATION_BASEと同じ値
-const CONFIRM_HOP_DURATION = 240; // 実エディタのHOP_DURATIONと同じ値
+const HOP_DURATION = 240; // 実エディタのHOP_DURATIONと同じ値
 const ARM_RISE_SPEED = 0.22;
 const SIT_SPEED = 0.05;
 const SQUASH_SPEED = 0.15;
@@ -46,7 +46,7 @@ export type DemoState =
   | 'jump'
   | 'throw'
   | 'composing'
-  | 'confirmHop'
+  | 'hop'
   | 'selecting'
   | 'pasting';
 
@@ -59,7 +59,7 @@ export const DEMO_STATES: { value: DemoState; label: string; note?: string }[] =
   { value: 'givenUp', label: 'あきらめて着席' },
   { value: 'jump', label: '改行ジャンプ' },
   { value: 'throw', label: '削除(放り投げ)' },
-  { value: 'confirmHop', label: '変換確定/複数文字ホップ' },
+  { value: 'hop', label: '複数文字ホップ' },
   { value: 'composing', label: '変換中(表示のみ)' },
   { value: 'selecting', label: '選択ポーズ', note: '実エディタ接続済み' },
   { value: 'pasting', label: '貼り付けポーズ', note: '実エディタ接続済み' },
@@ -81,9 +81,9 @@ export class DemoStickmanState {
   private throwActive = false;
   private throwStart = 0;
   private nextThrowAt = 0;
-  private confirmHopActive = false;
+  private hopActive = false;
   private hopDir = -1; // 確認用に、再生するたび右(1)と左(-1)を交互に切り替える
-  private confirmHopStart = 0;
+  private hopStart = 0;
   private nextHopAt = 0;
   private stateEnteredAt = 0; // 今のピルに切り替わった時刻(基本ポーズの間 → キャレットのフリの遅延に使う)
 
@@ -91,7 +91,7 @@ export class DemoStickmanState {
   restart(now: number): void {
     this.jumpPhase = 'none';
     this.throwActive = false;
-    this.confirmHopActive = false;
+    this.hopActive = false;
     this.nextJumpAt = now;
     this.nextThrowAt = now;
     this.nextHopAt = now;
@@ -110,7 +110,7 @@ export class DemoStickmanState {
     // 「短い待機」ピルを選んでから3秒経つまでは基本ポーズのまま繋ぎ、それから腕を上げ始める(実エディタと同じ)
     const isCaretPose = isShortIdle && now - this.stateEnteredAt >= CARET_POSE_DELAY_MS;
 
-    // ワンショット系(ジャンプ/放り投げ/変換確定ホップ)は選択中、一定間隔で自動的に繰り返す
+    // ワンショット系(ジャンプ/放り投げ/複数文字ホップ)は選択中、一定間隔で自動的に繰り返す
     if (demoState === 'jump' && this.jumpPhase === 'none' && now >= this.nextJumpAt) {
       this.jumpPhase = 'anticipate';
       this.anticipateStart = now;
@@ -119,9 +119,9 @@ export class DemoStickmanState {
       this.throwActive = true;
       this.throwStart = now;
     }
-    if (demoState === 'confirmHop' && !this.confirmHopActive && now >= this.nextHopAt) {
-      this.confirmHopActive = true;
-      this.confirmHopStart = now;
+    if (demoState === 'hop' && !this.hopActive && now >= this.nextHopAt) {
+      this.hopActive = true;
+      this.hopStart = now;
       this.hopDir = -this.hopDir;
     }
 
@@ -182,15 +182,15 @@ export class DemoStickmanState {
 
     let hopY = 0;
     let hopLeanAmt = 0;
-    if (this.confirmHopActive) {
-      const hopProgress = Math.min(1, (now - this.confirmHopStart) / CONFIRM_HOP_DURATION);
+    if (this.hopActive) {
+      const hopProgress = Math.min(1, (now - this.hopStart) / HOP_DURATION);
       hopY = -Math.sin(hopProgress * Math.PI) * 7;
       hopLeanAmt =
         hopProgress < 0.35 // 出だしで一気にダッシュ姿勢になり(肘に引っぱられる瞬間)、そこからゆっくり戻る
         ? 1 - (1 - hopProgress / 0.35) ** 2
         : 1 - ((hopProgress - 0.35) / 0.65) ** 2;
       if (hopProgress >= 1) {
-        this.confirmHopActive = false;
+        this.hopActive = false;
         this.nextHopAt = now + REPEAT_GAP_MS;
       }
     }
@@ -281,7 +281,7 @@ export class DemoStickmanState {
 
       // 肘: 掴む時は曲げて力を溜め、振り抜いたら伸ばし切る
       branchElbowBend = lerp(1.6, lerp(3.5, 0.2, throwT), powerT);
-    } else if (this.confirmHopActive) {
+    } else if (this.hopActive) {
       // 大きな横移動のホップ: 進行方向側の肘を曲げて前に突き出し、その肘に引っぱられるように飛び出す。
       // 反対の腕は後ろへまっすぐ伸ばし、後ろ脚は斜めに蹴り出し、前脚は膝を上げて踏み出す。
       // 座標は右へ飛ぶ場合で書いてあり、左へ飛ぶ時はd=-1にしてx方向だけ左右反転する
