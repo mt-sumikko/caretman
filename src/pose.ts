@@ -86,6 +86,7 @@ export class StickmanState {
   private pasteDuration = PASTE_DURATION_BASE;
   private hopActive = false;
   private hopDir = 1; // 1=画面右へ / -1=画面左へ移動中
+  private walkDir = 1; // 1=右向きに歩く / -1=左向きに歩く
   private hopStart = 0;
   private selecting = false;
   private composing = false;
@@ -130,6 +131,11 @@ export class StickmanState {
 
   isPasteActive(): boolean {
     return this.pasteActive;
+  }
+
+  /** 歩く向きをキャレットの移動方向に合わせる(dx=0の時は向きを変えない) */
+  setWalkDir(dx: number): void {
+    if (dx !== 0) this.walkDir = dx > 0 ? 1 : -1;
   }
 
   isHopActive(): boolean {
@@ -496,6 +502,11 @@ export class StickmanState {
       elbowLOverride = armLPose.elbow;
       armR = armRPose.hand;
       elbowROverride = armRPose.elbow;
+      // 左へ歩く時は、右向きの歩きをそのまま左右反転する(腰の真上 x=0 を軸に折り返す)
+      if (this.walkDir < 0) {
+        for (const p of [neck, hip, armL, armR, kneeL, kneeR, footL, footR, armLPose.elbow, armRPose.elbow]) p.x = -p.x;
+        head.cx = -head.cx;
+      }
     } else if (isShortIdle) {
       // 通常時: 腕を上げてキャレットのフリをする(上げ直しは0.2秒くらいで)
       const downArmL = { x: neutral.armL.x, y: neutral.armL.y };

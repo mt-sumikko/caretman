@@ -364,6 +364,8 @@ export class CaretmanEditor {
       isHop = true;
       this.state.triggerHop(performance.now(), x - this.lastCaretX);
     }
+    // 歩く向きは、キャレットが動いた向きに合わせる(左へ1文字戻る時は左向きに歩く)
+    if (!isHop && moveKind !== 'jump' && this.lastCaretX !== null) this.state.setWalkDir(x - this.lastCaretX);
     this.lastCaretX = x;
 
     // ジャンプ/ホップでの移動はふわっと、通常の移動は素早く
@@ -387,12 +389,14 @@ export class CaretmanEditor {
       const inputEvent = e as InputEvent;
       this.state.recordActivity(performance.now());
       const newLength = this.editor.textContent?.length ?? 0;
-      const isDelete = inputEvent.inputType?.startsWith('delete') && !inputEvent.isComposing;
-      // Undo/Redoはinputtype自体では削除か追加か分からないので、文字数の増減で判定する
-      const isHistoryDelete = inputEvent.inputType?.startsWith('history') && newLength < this.lastTextLength;
-      if (isDelete || isHistoryDelete) {
-        const deletedLength = Math.max(1, this.lastTextLength - newLength);
-        this.state.triggerThrow(performance.now(), deletedLength);
+      // 放り投げは、実際に文字が減った時だけ。空行や行頭でのBackspaceのように改行だけが消えた時は
+      // 文字数が変わらないので投げず、ただの移動(同じ行なら歩き、行をまたげば改行ジャンプ)として扱う
+      // (Undo/RedoもinputTypeだけでは削除か追加か分からないので、同じく文字数の増減で判定する)
+      const isDeleteType =
+        (inputEvent.inputType?.startsWith('delete') && !inputEvent.isComposing) ||
+        inputEvent.inputType?.startsWith('history');
+      if (isDeleteType && newLength < this.lastTextLength) {
+        this.state.triggerThrow(performance.now(), this.lastTextLength - newLength);
       }
       this.lastTextLength = newLength;
       this.updateFigurePosition();

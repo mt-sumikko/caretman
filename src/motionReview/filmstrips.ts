@@ -23,7 +23,7 @@ const SPECS: Record<DemoState, StripSpec> = {
   base: { start: 0, duration: 0, frames: 1 },
   shortIdle: { start: 3000, duration: 200, frames: 5, caption: '3秒待ってから腕を上げる(以降はキャレットのように点滅)' },
   shortIdleBetween: { start: 3000, duration: 200, frames: 5, caption: '文字の間では体を細く潰す' },
-  walk: { start: 0, duration: 560, frames: 9, caption: '1周期=左右1歩ずつ' },
+  walk: { start: 0, duration: 560, frames: 9, caption: '1周期=左右1歩ずつ(左へ移動する時は左右反転)' },
   longIdle: { start: 2000, duration: 1800, frames: 9, caption: '1周期=左右に1往復' },
   givenUp: { start: 0, duration: 1500, frames: 7, caption: '立ち姿からあぐらへ' },
   jump: { start: 0, duration: 700, frames: 11, caption: '助走→跳躍→着地' },
