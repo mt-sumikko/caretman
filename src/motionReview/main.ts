@@ -1,6 +1,7 @@
 import './style.css';
 import { DemoStickmanState, DEMO_STATES, type DemoState } from './state';
 import { StickmanRenderer } from '../render';
+import { renderFilmstrips } from './filmstrips';
 
 /**
  * このファイルの役割(ざっくり):
@@ -94,6 +95,8 @@ for (const { value, label, note } of DEMO_STATES) {
   });
   picker.appendChild(btn);
 }
+
+renderFilmstrips(requireEl<HTMLElement>('filmstrips'));
 
 function loop(now: number): void {
   const pose = state.computePose(now, demoState);

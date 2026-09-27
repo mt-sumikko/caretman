@@ -165,3 +165,98 @@ h1 {
   opacity: 0.8;
   margin-top: 2px;
 }
+
+/* ---- モーション図鑑(コマ送り) ---- */
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+  border-top: 0.5px solid var(--border);
+  padding-top: 18px;
+}
+
+.gallery h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.gallery-note {
+  font-size: 12px;
+  opacity: 0.6;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.filmstrips {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.strip {
+  margin: 0;
+  background: var(--panel);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.strip-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-bottom: 8px;
+}
+
+.strip-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.strip-meta {
+  font-size: 11px;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.strip-caption {
+  flex-basis: 100%;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+/* コマが多いモーションは横スクロールで見られるようにする(スマホ幅でページ全体がはみ出さないように) */
+.strip-row {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.strip-cell {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.strip-frame {
+  width: 52px;
+  height: 66px;
+  overflow: visible;
+}
+
+.strip-ground {
+  stroke: var(--border);
+  stroke-width: 0.6;
+}
+
+.strip-time {
+  font-size: 9.5px;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+  min-height: 1em;
+}

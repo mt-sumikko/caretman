@@ -6,3 +6,7 @@ Code(このリポジトリ)へ移行する前、チャットでのプロトタ�
 - [`input-event-checklist.md`](./input-event-checklist.md) — テキストエディタで起こり得る入力イベントの網羅性チェック表
 - [`prototype-editor.html`](./prototype-editor.html) — 移行前の単一HTMLプロトタイプ(実際にcontenteditableでキャレット追従する版)
 - [`prototype-decision-render.html`](./prototype-decision-render.html) — 線の質感(rough.js + 静的テクスチャマスク)の比較検証ツール。「決定版レンダリング」として実エディタに統合済み
+
+## モーション図鑑
+
+- [`motion-filmstrips/`](./motion-filmstrips/) — 各モーションのコマ送り画像(1モーション=1枚)。motion-review.htmlの「モーション図鑑」を書き出したスナップショットなので、最新の動きはmotion-review.html側で確認する(ページを開くたびに実際のモーションの計算から描き直している)
