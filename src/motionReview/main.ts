@@ -35,6 +35,8 @@ const scaleOut = requireEl<HTMLElement>('scale-out');
 const textureToggle = requireEl<HTMLInputElement>('texture');
 const boilToggle = requireEl<HTMLInputElement>('boil');
 const picker = requireEl<HTMLElement>('picker');
+const sizeRefLeft = requireEl<HTMLElement>('size-ref-left');
+const sizeRefRight = requireEl<HTMLElement>('size-ref-right');
 
 if (!renderer.roughAvailable) {
   textureToggle.checked = false;
@@ -42,12 +44,19 @@ if (!renderer.roughAvailable) {
 }
 
 const FIGURE_RATIO = 30 / 44;
+// 実エディタ(editor.ts)の「フォントサイズ→棒人間の高さ」の計算式と同じ倍率。
+// この値で逆算し、「このサイズは大体何pxの文字に相当するか」を横に並べた文字で確認できるようにする
+const BASE_HEIGHT_MULT = 1.35;
 
 function applySize(scale: number): void {
   const height = scale * 20;
   const width = height * FIGURE_RATIO;
   figureEl.style.width = `${width}px`;
   figureEl.style.height = `${height}px`;
+
+  const equivalentFontSize = height / BASE_HEIGHT_MULT;
+  sizeRefLeft.style.fontSize = `${equivalentFontSize}px`;
+  sizeRefRight.style.fontSize = `${equivalentFontSize}px`;
 }
 
 scaleInput.addEventListener('input', () => {
@@ -83,6 +92,8 @@ function loop(now: number): void {
   const pose = state.computePose(now, demoState);
   figureEl.classList.toggle('composing', demoState === 'composing');
   renderer.draw(pose, boilToggle.checked, textureToggle.checked);
+  // キャレットの点滅表現(実エディタと同じ。該当しない時はnullなのでスタイルを外す)
+  figureEl.style.opacity = pose.blinkOpacity === null ? '' : String(pose.blinkOpacity);
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

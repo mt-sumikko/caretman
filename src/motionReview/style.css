@@ -70,8 +70,18 @@ h1 {
   width: 100%;
   min-height: 240px;
   display: flex;
-  align-items: center;
+  align-items: flex-end; /* 文字と棒人間の足元(≒ベースライン)を揃えるため、下端で揃える */
   justify-content: center;
+  gap: 20px;
+}
+
+/* サイズ比較用の文字(「あ」「愛」)。実際のフォントサイズに換算した大きさをJS側で当てている */
+.size-ref {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  line-height: 1;
+  color: var(--ink);
+  opacity: 0.5;
+  user-select: none;
 }
 
 .figure svg {

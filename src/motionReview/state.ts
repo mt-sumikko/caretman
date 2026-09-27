@@ -21,6 +21,8 @@ const SIT_SPEED = 0.05;
 const SQUASH_SPEED = 0.15;
 const LONG_IDLE_SWING_MS = 2600;
 const REPEAT_GAP_MS = 700; // ワンショット系モーションの、選択中の自動リピート間隔
+const CARET_POSE_DELAY_MS = 3000; // 「短い待機」ピルを選んでから、キャレットのフリ(腕上げ)を始めるまでの間(実エディタと同じ値)
+const BLINK_HALF_MS = 530; // 一般的なキャレットの点滅速度(実エディタと同じ値)
 
 const neutral = {
   head: { cx: 0, cy: -32, r: 6 },
@@ -58,7 +60,7 @@ export const DEMO_STATES: { value: DemoState; label: string; note?: string }[] =
   { value: 'confirmHop', label: '変換確定/複数文字ホップ' },
   { value: 'composing', label: '変換中(表示のみ)' },
   { value: 'selecting', label: '選択ポーズ', note: '実エディタ接続済み' },
-  { value: 'pasting', label: '貼り付けポーズ(仮)', note: '実エディタ未接続・要検証' },
+  { value: 'pasting', label: '貼り付けポーズ', note: '実エディタ接続済み' },
 ];
 
 type JumpPhase = 'none' | 'anticipate' | 'arc' | 'brace';
@@ -79,6 +81,7 @@ export class DemoStickmanState {
   private confirmHopActive = false;
   private confirmHopStart = 0;
   private nextHopAt = 0;
+  private stateEnteredAt = 0; // 今のピルに切り替わった時刻(基本ポーズの間 → キャレットのフリの遅延に使う)
 
   /** モーションを切り替えた時、待たずにすぐ一度再生させる */
   restart(now: number): void {
@@ -88,6 +91,7 @@ export class DemoStickmanState {
     this.nextJumpAt = now;
     this.nextThrowAt = now;
     this.nextHopAt = now;
+    this.stateEnteredAt = now;
   }
 
   computePose(now: number, demoState: DemoState): Pose {
@@ -99,6 +103,8 @@ export class DemoStickmanState {
     const isGivenUp = demoState === 'givenUp';
     const isSelecting = demoState === 'selecting';
     const isPasting = demoState === 'pasting';
+    // 「短い待機」ピルを選んでから3秒経つまでは基本ポーズのまま繋ぎ、それから腕を上げ始める(実エディタと同じ)
+    const isCaretPose = isShortIdle && now - this.stateEnteredAt >= CARET_POSE_DELAY_MS;
 
     // ワンショット系(ジャンプ/放り投げ/変換確定ホップ)は選択中、一定間隔で自動的に繰り返す
     if (demoState === 'jump' && this.jumpPhase === 'none' && now >= this.nextJumpAt) {
@@ -120,7 +126,7 @@ export class DemoStickmanState {
     const sitTarget = isGivenUp ? 1 : 0;
     this.sitAmt += (sitTarget - this.sitAmt) * SIT_SPEED;
 
-    const armRaiseTarget = isShortIdle ? 1 : 0;
+    const armRaiseTarget = isCaretPose ? 1 : 0;
     if (armRaiseTarget > this.armRaiseAmt) {
       this.armRaiseAmt += (armRaiseTarget - this.armRaiseAmt) * ARM_RISE_SPEED;
     } else {
@@ -380,13 +386,14 @@ export class DemoStickmanState {
       const swayKneeR = { x: neutral.legR.x / 2, y: (swayHip.y + neutral.legR.y) / 2 };
       const swayFootL = { x: neutral.legL.x, y: neutral.legL.y };
       const swayFootR = { x: neutral.legR.x, y: neutral.legR.y };
+      // あぐら風: 膝を左右に大きく開き、足先は逆に体の中心近くまで寄せる(実エディタ: src/pose.ts と同じ値)
       const sitHip = { x: neutral.hip.x, y: neutral.hip.y + 16 };
-      const sitArmL = { x: -8, y: 4 };
-      const sitArmR = { x: 8, y: 4 };
-      const sitKneeL = { x: -10, y: 6 };
-      const sitKneeR = { x: 10, y: 6 };
-      const sitFootL = { x: -15, y: 8 };
-      const sitFootR = { x: 15, y: 8 };
+      const sitArmL = { x: -10, y: 4 };
+      const sitArmR = { x: 10, y: 4 };
+      const sitKneeL = { x: -15, y: 3 };
+      const sitKneeR = { x: 15, y: 3 };
+      const sitFootL = { x: -3, y: 9 };
+      const sitFootR = { x: 3, y: 9 };
       hip.x = lerp(swayHip.x, sitHip.x, this.sitAmt);
       hip.y = lerp(swayHip.y, sitHip.y, this.sitAmt);
       head.cx = lerp(swayHeadCx, neutral.head.cx, this.sitAmt);
@@ -411,6 +418,13 @@ export class DemoStickmanState {
 
     const elbowBend = isTyping ? 1.5 : isSelecting ? 3 : isBase ? 0 : 2.5;
 
+    // キャレットのフリをしている間だけ点滅させる(実エディタと同じ)
+    let blinkOpacity: number | null = null;
+    if (isCaretPose) {
+      const blinkElapsed = now - this.stateEnteredAt - CARET_POSE_DELAY_MS;
+      blinkOpacity = Math.floor(blinkElapsed / BLINK_HALF_MS) % 2 === 0 ? 1 : 0;
+    }
+
     return {
       head,
       neck,
@@ -423,7 +437,7 @@ export class DemoStickmanState {
       legR: footR,
       elbowBend,
       squashAmt: this.squashAmt,
-      blinkOpacity: null, // このツールでは点滅は確認対象外
+      blinkOpacity,
       status: DEMO_STATES.find((s) => s.value === demoState)?.label ?? demoState,
     };
   }

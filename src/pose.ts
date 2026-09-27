@@ -478,13 +478,14 @@ export class StickmanState {
       const swayFootL = { x: neutral.legL.x, y: neutral.legL.y };
       const swayFootR = { x: neutral.legR.x, y: neutral.legR.y };
 
+      // あぐら風: 膝を左右に大きく開き、足先は逆に体の中心近くまで寄せる(手描き参考画像に合わせた)
       const sitHip = { x: neutral.hip.x, y: neutral.hip.y + 16 };
-      const sitArmL = { x: -8, y: 4 };
-      const sitArmR = { x: 8, y: 4 };
-      const sitKneeL = { x: -10, y: 6 };
-      const sitKneeR = { x: 10, y: 6 };
-      const sitFootL = { x: -15, y: 8 };
-      const sitFootR = { x: 15, y: 8 };
+      const sitArmL = { x: -10, y: 4 };
+      const sitArmR = { x: 10, y: 4 };
+      const sitKneeL = { x: -15, y: 3 };
+      const sitKneeR = { x: 15, y: 3 };
+      const sitFootL = { x: -3, y: 9 };
+      const sitFootR = { x: 3, y: 9 };
 
       hip.x = lerp(swayHip.x, sitHip.x, this.sitAmt);
       hip.y = lerp(swayHip.y, sitHip.y, this.sitAmt);
