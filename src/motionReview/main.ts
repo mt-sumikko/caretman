@@ -1,0 +1,80 @@
+import './style.css';
+import { DemoStickmanState, DEMO_STATES, type DemoState } from './state';
+import { StickmanRenderer } from '../render';
+
+function requireEl<T extends Element>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`#${id} が見つかりません`);
+  return el as unknown as T;
+}
+
+const figureEl = requireEl<HTMLElement>('figure');
+const svgEl = figureEl.querySelector('svg');
+if (!svgEl) throw new Error('#figure 内に svg が見つかりません');
+
+const renderer = new StickmanRenderer({
+  svg: svgEl,
+  cleanGroup: requireEl('clean-group'),
+  roughGroup: requireEl('rough-group'),
+  pHead: requireEl('p-head'),
+  pBody: requireEl('p-body'),
+  pArms: requireEl('p-arms'),
+  pLegs: requireEl('p-legs'),
+});
+
+const scaleInput = requireEl<HTMLInputElement>('scale');
+const scaleOut = requireEl<HTMLElement>('scale-out');
+const textureToggle = requireEl<HTMLInputElement>('texture');
+const boilToggle = requireEl<HTMLInputElement>('boil');
+const picker = requireEl<HTMLElement>('picker');
+
+if (!renderer.roughAvailable) {
+  textureToggle.checked = false;
+  textureToggle.disabled = true;
+}
+
+const FIGURE_RATIO = 30 / 44;
+
+function applySize(scale: number): void {
+  const height = scale * 20;
+  const width = height * FIGURE_RATIO;
+  figureEl.style.width = `${width}px`;
+  figureEl.style.height = `${height}px`;
+}
+
+scaleInput.addEventListener('input', () => {
+  const v = parseFloat(scaleInput.value);
+  scaleOut.textContent = v.toFixed(1);
+  applySize(v);
+});
+applySize(parseFloat(scaleInput.value));
+scaleOut.textContent = parseFloat(scaleInput.value).toFixed(1);
+
+let demoState: DemoState = 'shortIdle';
+const state = new DemoStickmanState();
+state.restart(performance.now());
+
+for (const { value, label, note } of DEMO_STATES) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'motion-pill';
+  btn.dataset.value = value;
+  btn.innerHTML = note ? `${label}<span class="note">${note}</span>` : label;
+  if (value === demoState) btn.classList.add('active');
+  btn.addEventListener('click', () => {
+    demoState = value;
+    state.restart(performance.now());
+    for (const el of picker.querySelectorAll('.motion-pill')) {
+      el.classList.toggle('active', el === btn);
+    }
+  });
+  picker.appendChild(btn);
+}
+
+function loop(now: number): void {
+  const pose = state.computePose(now, demoState);
+  figureEl.classList.toggle('composing', demoState === 'composing');
+  renderer.draw(pose, boilToggle.checked, textureToggle.checked);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);

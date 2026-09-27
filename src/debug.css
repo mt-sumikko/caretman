@@ -1,12 +1,25 @@
-/* デバッグ専用UI。本番の画面には出さず、右下のトグルボタン(or `キー)で開閉する */
+/* デバッグ専用UI。本番の画面には出さず、左下のトグルボタン(or `キー)で開閉する。
+   右下は本体UIのメニューボタンと被るため、あえて左側に置いている */
+
+:root {
+  --debug-panel-bg: #ffffff;
+  --debug-border: #ddd8cc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --debug-panel-bg: #26241f;
+    --debug-border: #3a382f;
+  }
+}
 
 .debug-toggle {
   position: fixed;
-  right: 12px;
+  left: 12px;
   bottom: 12px;
   appearance: none;
-  border: 0.5px solid var(--border);
-  background: var(--panel);
+  border: 0.5px solid var(--debug-border);
+  background: var(--debug-panel-bg);
   color: var(--ink);
   font-size: 11px;
   padding: 5px 10px;
@@ -22,13 +35,13 @@
 
 .debug-panel {
   position: fixed;
-  right: 12px;
+  left: 12px;
   bottom: 48px;
   width: min(320px, calc(100vw - 24px));
   max-height: calc(100vh - 72px);
   overflow-y: auto;
-  background: var(--panel);
-  border: 0.5px solid var(--border);
+  background: var(--debug-panel-bg);
+  border: 0.5px solid var(--debug-border);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   padding: 12px 14px;
@@ -38,6 +51,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.debug-panel[hidden] {
+  display: none;
 }
 
 .debug-row {
@@ -66,7 +83,7 @@
 
 .debug-btn {
   appearance: none;
-  border: 0.5px solid var(--border);
+  border: 0.5px solid var(--debug-border);
   background: var(--bg);
   color: var(--ink);
   font-size: 12px;

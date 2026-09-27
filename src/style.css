@@ -1,16 +1,14 @@
 :root {
-  --ink: #2c2c2a;
+  --ink: #2c2320;
   --bg: #faf8f3;
-  --panel: #ffffff;
-  --border: #ddd8cc;
+  --menu-bg: #fafafa;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --ink: #eae7dd;
     --bg: #1c1b18;
-    --panel: #26241f;
-    --border: #3a382f;
+    --menu-bg: #26241f;
   }
 }
 
@@ -27,44 +25,99 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
 }
 
-body {
-  padding: env(safe-area-inset-top, 24px) 20px env(safe-area-inset-bottom, 24px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
+.page {
+  position: relative;
+  min-height: 100%;
 }
 
-h1 {
-  font-size: 15px;
-  font-weight: 500;
-  margin: 4px 0 0;
+.toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 24px;
+}
+
+.dl-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  border-radius: 2px;
+  padding: 0 10px;
+  font-size: 16px;
+  line-height: 1.5;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.content {
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 100vh;
+  /* Editor領域のpadding: 80px / max(24px, calc(50vw - 400px)) (typearea最大幅800pxを中央寄せ) */
+  padding: 80px max(24px, calc(50vw - 400px));
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 32px 16px;
+  }
 }
 
 .editor-wrap {
   position: relative;
   width: 100%;
-  max-width: 900px;
+  max-width: 800px;
+  flex: 1 1 auto;
 }
 
 .editor {
   width: 100%;
-  min-height: 480px;
-  background: var(--panel);
-  border: 0.5px solid var(--border);
-  border-radius: 12px;
-  padding: 44px 48px;
-  font-size: 60px;
-  line-height: 2;
+  min-height: 100%;
+  font-size: 24px;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
   outline: none;
   caret-color: transparent;
 }
 
+@media (max-width: 768px) {
+  .editor {
+    font-size: 16px;
+  }
+}
+
 .editor:empty::before {
-  content: 'ここに何か打ってみて';
-  opacity: 0.35;
+  content: 'いっしょに書いてこ〜!';
+  color: var(--ink);
+}
+
+.menu-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: none;
+  background: var(--menu-bg);
+  color: var(--ink);
+  opacity: 0.9;
+  box-shadow: 0 1px 2.5px rgba(0, 0, 0, 0.05);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .figure {

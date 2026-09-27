@@ -6,33 +6,44 @@
     <title>キャレット棒人間エディタ</title>
   </head>
   <body>
-    <h1>キャレット棒人間エディタ</h1>
+    <div class="page">
+      <header class="toolbar">
+        <button class="dl-btn" id="btn-dl-txt" type="button">.txt</button>
+        <button class="dl-btn" id="btn-dl-md" type="button">.md</button>
+      </header>
 
-    <div class="editor-wrap" id="wrap">
-      <div class="editor" id="editor" contenteditable="true" spellcheck="false"></div>
-      <div class="figure" id="figure">
-        <svg viewBox="-20 -44 40 60">
-          <defs>
-            <mask id="pencil-mask" maskContentUnits="userSpaceOnUse">
-              <image
-                href="/textures/pencil-grain-placeholder.png"
-                x="-20"
-                y="-44"
-                width="40"
-                height="60"
-                preserveAspectRatio="none"
-              />
-            </mask>
-          </defs>
-          <g id="clean-group">
-            <path class="stroke" id="p-head" d=""></path>
-            <path class="stroke" id="p-body" d=""></path>
-            <path class="stroke" id="p-arms" d=""></path>
-            <path class="stroke" id="p-legs" d=""></path>
-          </g>
-          <g id="rough-group" mask="url(#pencil-mask)"></g>
-        </svg>
+      <div class="content">
+        <div class="editor-wrap" id="wrap">
+          <div class="editor" id="editor" contenteditable="true" spellcheck="false"></div>
+          <div class="figure" id="figure">
+            <svg viewBox="-20 -44 40 60">
+              <defs>
+                <mask id="pencil-mask" maskContentUnits="userSpaceOnUse">
+                  <image
+                    href="/textures/pencil-grain-placeholder.png"
+                    x="-20"
+                    y="-44"
+                    width="40"
+                    height="60"
+                    preserveAspectRatio="none"
+                  />
+                </mask>
+              </defs>
+              <g id="clean-group">
+                <path class="stroke" id="p-head" d=""></path>
+                <path class="stroke" id="p-body" d=""></path>
+                <path class="stroke" id="p-arms" d=""></path>
+                <path class="stroke" id="p-legs" d=""></path>
+              </g>
+              <g id="rough-group" mask="url(#pencil-mask)"></g>
+            </svg>
+          </div>
+        </div>
       </div>
+
+      <button class="menu-btn" id="btn-menu" type="button" aria-label="メニュー">
+        <span aria-hidden="true">&#8943;</span>
+      </button>
     </div>
 
     <button class="debug-toggle" id="debug-toggle" type="button" aria-expanded="false" aria-controls="debug-panel">
