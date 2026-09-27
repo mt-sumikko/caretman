@@ -26,6 +26,7 @@ export interface CaretmanEditorElements {
   editor: HTMLElement;
   wrap: HTMLElement;
   figure: HTMLElement;
+  placeholder: HTMLElement;
   renderer: RendererElements;
 }
 
@@ -33,6 +34,7 @@ export class CaretmanEditor {
   private readonly editor: HTMLElement;
   private readonly wrap: HTMLElement;
   private readonly figure: HTMLElement;
+  private readonly placeholder: HTMLElement;
   private readonly figureSvg: SVGSVGElement;
   private readonly state: StickmanState;
   private readonly renderer: StickmanRenderer;
@@ -53,6 +55,7 @@ export class CaretmanEditor {
     this.editor = els.editor;
     this.wrap = els.wrap;
     this.figure = els.figure;
+    this.placeholder = els.placeholder;
     this.figureSvg = els.renderer.svg;
     this.state = new StickmanState(performance.now());
     this.renderer = new StickmanRenderer(els.renderer);
@@ -96,6 +99,15 @@ export class CaretmanEditor {
     this.onTextChanged = cb;
   }
 
+  /**
+   * 本文が空の時だけプレースホルダーを出す。改行だけ打った状態(1行目以外にいる)や、
+   * IME変換中(まだ本文に文字は無いが入力中)、初回デモの再生中は出さない
+   */
+  private updatePlaceholder(): void {
+    const empty = (this.editor.textContent ?? '') === '' && this.editor.children.length <= 1;
+    this.placeholder.hidden = !empty || this.state.isComposing() || this.introDemoActive;
+  }
+
   /** 保存されていた内容を復元し、キャレットを末尾(最後の行の中)に置いて、棒人間もそこへ移す */
   restoreContent(html: string): void {
     this.editor.innerHTML = html;
@@ -114,6 +126,7 @@ export class CaretmanEditor {
     // 復元による位置の変化は「移動」ではないので、ジャンプ/ホップ扱いにしないよう前回位置を忘れてから合わせる
     this.lastLineY = null;
     this.lastCaretX = null;
+    this.updatePlaceholder();
     this.updateFigurePosition();
   }
 
@@ -130,6 +143,7 @@ export class CaretmanEditor {
   async runIntroDemo(text: string): Promise<void> {
     if (this.introDemoCancelled) return;
     this.introDemoActive = true;
+    this.updatePlaceholder();
     this.editor.focus();
 
     await delay(600);
@@ -156,6 +170,7 @@ export class CaretmanEditor {
     this.editor.textContent = '';
     this.editor.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
     this.introDemoActive = false;
+    this.updatePlaceholder();
   }
 
   private cancelIntroDemo(): void {
@@ -164,6 +179,7 @@ export class CaretmanEditor {
     this.introDemoActive = false;
     this.editor.textContent = '';
     this.lastTextLength = 0;
+    this.updatePlaceholder();
     this.updateFigurePosition();
   }
 
@@ -193,6 +209,7 @@ export class CaretmanEditor {
 
   init(): void {
     this.bindEvents();
+    this.updatePlaceholder();
 
     // 初期表示: 実際のフォーカス/キーボード操作を待たずに、正しいサイズ・位置で表示する
     const initSize = this.currentFigureSize();
@@ -400,6 +417,7 @@ export class CaretmanEditor {
         this.state.triggerThrow(performance.now(), this.lastTextLength - newLength);
       }
       this.lastTextLength = newLength;
+      this.updatePlaceholder();
       this.updateFigurePosition();
       this.onTextChanged?.();
     });
@@ -441,6 +459,7 @@ export class CaretmanEditor {
     this.editor.addEventListener('compositionstart', () => {
       this.state.setComposing(true);
       this.figure.classList.add('composing');
+      this.updatePlaceholder();
     });
 
     this.editor.addEventListener('compositionupdate', () => {
@@ -451,6 +470,7 @@ export class CaretmanEditor {
     this.editor.addEventListener('compositionend', () => {
       this.state.setComposing(false);
       this.figure.classList.remove('composing');
+      this.updatePlaceholder();
       this.state.recordActivity(performance.now());
       // 変換確定専用のモーションはない。変換候補を選んでいる間はその場で待っているので、確定で文字数が
       // 変わっていれば、ここでの位置合わせで距離に応じて歩き/ホップする(変わらなければ動かず待機へ)

@@ -32,6 +32,7 @@ if (!svgEl) throw new Error('#figure 内に svg が見つかりません');
 const editor = new CaretmanEditor({
   editor: requireEl('editor'),
   wrap: requireEl('wrap'),
+  placeholder: requireEl('placeholder'),
   figure: figureEl,
   renderer: {
     svg: svgEl,

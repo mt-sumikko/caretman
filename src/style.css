@@ -117,6 +117,32 @@ body {
   }
 }
 
+/* 本文が空の時のひとこと。本文と同じ文字サイズ・行の高さにして1行目のベースラインに揃え、
+   左端は棒人間(キャレット)と重ならないよう少し右へ逃がす */
+.placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding-left: 1.25em;
+  font-size: 1.5rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--ink);
+  opacity: 0.3;
+  pointer-events: none;
+  user-select: none;
+}
+
+.placeholder[hidden] {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .placeholder {
+    font-size: 1.125rem;
+  }
+}
+
 /* 右上の丸いダウンロード/共有ボタンはSPでのみ表示する(PCはヘッダーのボタン) */
 .sp-dl-btn {
   display: none;
