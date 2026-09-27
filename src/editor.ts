@@ -321,9 +321,13 @@ export class CaretmanEditor {
       const isDelete = inputEvent.inputType?.startsWith('delete') && !inputEvent.isComposing;
       // Undo/Redoはinputtype自体では削除か追加か分からないので、文字数の増減で判定する
       const isHistoryDelete = inputEvent.inputType?.startsWith('history') && newLength < this.lastTextLength;
+      const isPaste = inputEvent.inputType?.startsWith('insertFromPaste') && !inputEvent.isComposing;
       if (isDelete || isHistoryDelete) {
         const deletedLength = Math.max(1, this.lastTextLength - newLength);
         this.state.triggerThrow(performance.now(), deletedLength);
+      } else if (isPaste) {
+        const pastedLength = Math.max(1, newLength - this.lastTextLength);
+        this.state.triggerPaste(performance.now(), pastedLength);
       }
       this.lastTextLength = newLength;
       this.updateFigurePosition();

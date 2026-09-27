@@ -13,6 +13,9 @@ const WALK_PHASE_MS = 140; // 歩行の4コマ切り替え間隔(常に一定。
 const THROW_DURATION_BASE = 220;
 const THROW_DURATION_MAX = 520;
 const THROW_DURATION_PER_CHAR = 12; // 削除した文字数が多いほど、放り投げの余韻を長くする
+const PASTE_DURATION_BASE = 220;
+const PASTE_DURATION_MAX = 520;
+const PASTE_DURATION_PER_CHAR = 12; // 貼り付けた文字量が多いほど、受け止める動作の余韻を長くする(放り投げと対称)
 const HOP_DURATION = 180; // 同一行内で大きく移動した時の小さいホップ(IME変換確定もこれに含まれる)
 const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
 const SIT_SPEED = 0.05; // 座り込みへの遷移速度
@@ -55,6 +58,9 @@ export class StickmanState {
   private throwLineJump = false; // 投げ中に行またぎが起きた場合、フルジャンプの代わりに小さい跳ねを重ねる簡易版にする
   private throwStart = 0;
   private throwDuration = THROW_DURATION_BASE;
+  private pasteActive = false;
+  private pasteStart = 0;
+  private pasteDuration = PASTE_DURATION_BASE;
   private hopActive = false;
   private hopStart = 0;
   private selecting = false;
@@ -115,6 +121,16 @@ export class StickmanState {
 
   markThrowLineJump(): void {
     this.throwLineJump = true;
+  }
+
+  /** pastedLengthが大きいほど、受け止める動作の余韻(継続時間)を長くする */
+  triggerPaste(now: number, pastedLength = 1): void {
+    this.pasteActive = true;
+    this.pasteStart = now;
+    this.pasteDuration = Math.min(
+      PASTE_DURATION_MAX,
+      PASTE_DURATION_BASE + Math.max(0, pastedLength - 1) * PASTE_DURATION_PER_CHAR,
+    );
   }
 
   /** 同一行内での大きな移動(Home/End・複数文字ジャンプ・IME変換確定など)で発火する小さいホップ */
@@ -196,6 +212,13 @@ export class StickmanState {
       }
     }
 
+    // 貼り付けた時の「かがんで受け止める」ジェスチャー(放り投げと対称)
+    if (this.pasteActive) {
+      const pasteProgress = Math.min(1, (now - this.pasteStart) / this.pasteDuration);
+      if (pasteProgress >= 1) this.pasteActive = false;
+    }
+    const isPasting = this.pasteActive && !inJumpSeq && !this.throwActive;
+
     // 同一行内での大きな移動時の小さいホップ(改行ジャンプとは別の、軽い一発だけの跳ね)
     let hopY = 0;
     let hopLeanAmt = 0;
@@ -206,7 +229,7 @@ export class StickmanState {
       if (hopProgress >= 1) this.hopActive = false;
     }
 
-    const isSelecting = this.selecting && !inJumpSeq && !this.throwActive;
+    const isSelecting = this.selecting && !inJumpSeq && !this.throwActive && !isPasting;
 
     const status = this.jumpPhase === 'anticipate'
       ? '助走'
@@ -216,7 +239,9 @@ export class StickmanState {
           ? '着地'
           : this.throwActive
             ? '放り投げ'
-            : isSelecting
+            : isPasting
+              ? '貼り付け'
+              : isSelecting
               ? '選択中'
               : this.hopActive
                 ? '移動'
@@ -319,6 +344,20 @@ export class StickmanState {
       hip.x += twist * 5;
       hip.y -= lungeT * 3;
       head.cx -= twist * 3;
+    } else if (isPasting) {
+      // 貼り付け: 足先は右側に残したまま、膝だけ左へ入れる。腰を深く屈めて左へ前屈みになる(決定版検証ツールの値を踏襲)
+      hip.x -= 2;
+      hip.y += 7;
+      head.cx -= 9;
+      head.cy += 6;
+      neck.x -= 7;
+      neck.y += 6;
+      armL = { x: -19, y: -3 };
+      armR = { x: -16, y: -1 };
+      kneeL = { x: -14, y: 2 };
+      kneeR = { x: -9, y: 3 };
+      footL = { x: -2, y: 8 };
+      footR = { x: 4, y: 8 };
     } else if (isSelecting) {
       // 選択ポーズ: 両腕を体幹に沿ってほぼ真上に伸ばし、手先だけわずかに右へ。重心は中央寄りに保つ。
       // 左足はつま先立ちで接地、右足は膝を上げる
