@@ -30,7 +30,7 @@ const THROW_DURATION_PER_CHAR = 12; // 削除した文字数が多いほど、�
 const PASTE_DURATION_BASE = 220;
 const PASTE_DURATION_MAX = 520;
 const PASTE_DURATION_PER_CHAR = 12; // 貼り付けた文字量が多いほど、受け止める動作の余韻を長くする(放り投げと対称)
-const HOP_DURATION = 180; // 同一行内で大きく移動した時の小さいホップ(IME変換確定もこれに含まれる)
+export const HOP_DURATION = 240; // 同一行内で大きく移動した時の小さいホップ(IME変換確定もこれに含まれる)。editor.tsの横移動アニメもこの長さに揃える
 const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
 const SIT_SPEED = 0.05; // 座り込みへの遷移速度
 const SQUASH_SPEED = 0.15; // 文字の間にいる時に体を薄くする速度
@@ -81,6 +81,7 @@ export class StickmanState {
   private pasteStart = 0;
   private pasteDuration = PASTE_DURATION_BASE;
   private hopActive = false;
+  private hopDir = 1; // 1=画面右へ / -1=画面左へ移動中
   private hopStart = 0;
   private selecting = false;
   private composing = false;
@@ -153,8 +154,9 @@ export class StickmanState {
   }
 
   /** 同一行内での大きな移動(Home/End・複数文字ジャンプ・IME変換確定など)で発火する小さいホップ */
-  triggerHop(now: number): void {
+  triggerHop(now: number, dir: number): void {
     this.hopActive = true;
+    this.hopDir = dir >= 0 ? 1 : -1;
     this.hopStart = now;
   }
 
@@ -247,7 +249,10 @@ export class StickmanState {
     if (this.hopActive) {
       const hopProgress = Math.min(1, (now - this.hopStart) / HOP_DURATION);
       hopY = -Math.sin(hopProgress * Math.PI) * 7;
-      hopLeanAmt = Math.sin(hopProgress * Math.PI); // 跳んでいる最中がピークになる前傾具合
+      hopLeanAmt =
+        hopProgress < 0.35 // 出だしで一気にダッシュ姿勢になり(肘に引っぱられる瞬間)、そこからゆっくり戻る
+        ? 1 - (1 - hopProgress / 0.35) ** 2
+        : 1 - ((hopProgress - 0.35) / 0.65) ** 2;
       if (hopProgress >= 1) this.hopActive = false;
     }
 
@@ -285,7 +290,9 @@ export class StickmanState {
     let footL: Point;
     let footR: Point;
 
-    let throwElbowBend: number | null = null; // 放り投げ中だけ使う肘の曲げ具合
+    let branchElbowBend: number | null = null; // 放り投げ/ホップ中だけ使う肘の曲げ具合
+    let elbowLOverride: Point | undefined; // 肘の位置を直接指定する時だけ使う(ホップの肘突き)
+    let elbowROverride: Point | undefined;
     if (this.jumpPhase === 'anticipate' || this.jumpPhase === 'brace') {
       // 助走の踏み込み/着地の踏ん張り: 足は地面(neutral)に固定したまま、
       // 膝を曲げて腰と頭が一緒に沈み込む(ニュートラルから正しくブレンド)
@@ -335,15 +342,15 @@ export class StickmanState {
 
       // 胴: 溜めは前(左)に屈んで沈み、投げでは後ろ(右)へのけぞって伸び上がる
       hip.x += lerp(-2, 1, throwT) * powerT;
-      hip.y += lerp(6, 2, throwT) * powerT;
+      hip.y += lerp(10, 2, throwT) * powerT;
       neck.x += lerp(-11, 8, throwT) * powerT;
-      neck.y += lerp(7, 2, throwT) * powerT;
+      neck.y += lerp(11, 2, throwT) * powerT;
       head.cx += lerp(-14, 10, throwT) * powerT;
-      head.cy += lerp(7, 2, throwT) * powerT;
+      head.cy += lerp(11, 2, throwT) * powerT;
 
       // 腕: 足元で掴む → 右上へ伸ばし切って振り抜く(腕の長さはどちらも肩から約16〜18)
-      const grabL = { x: -20, y: -4 };
-      const grabR = { x: -17, y: -1 };
+      const grabL = { x: -21, y: 1 };
+      const grabR = { x: -18, y: 3 };
       const tossL = { x: 18, y: -30 };
       const tossR = { x: 21, y: -25 };
       armL = lerpPoint(neutral.armL, lerpPoint(grabL, tossL, throwT), powerT);
@@ -351,17 +358,17 @@ export class StickmanState {
 
       // 脚: 溜めは左足を踏み込んで膝を曲げ、右足は後ろにまっすぐ。投げでは前足が勢いで浮き上がって伸び、
       // 体重を受ける後ろ足の膝が少し曲がる
-      const plantFootL = { x: -15, y: neutral.legL.y };
+      const plantFootL = { x: -17, y: neutral.legL.y };
       const kickFootL = { x: -13, y: 1 };
       footL = lerpPoint(neutral.legL, lerpPoint(plantFootL, kickFootL, throwT), powerT);
-      footR = lerpPoint(neutral.legR, { x: 10, y: neutral.legR.y }, powerT);
-      const bentKneeL = { x: hip.x - 8, y: hip.y + 4 };
+      footR = lerpPoint(neutral.legR, { x: 14, y: neutral.legR.y }, powerT);
+      const bentKneeL = { x: hip.x - 9, y: hip.y - 1 };
       const bentKneeR = { x: hip.x + 7, y: hip.y + 5 };
       kneeL = lerpPoint(lerpPoint(hip, footL, 0.5), bentKneeL, (1 - throwT) * powerT);
       kneeR = lerpPoint(lerpPoint(hip, footR, 0.5), bentKneeR, throwT * powerT * 0.4);
 
       // 肘: 掴む時は曲げて力を溜め、振り抜いたら伸ばし切る
-      throwElbowBend = lerp(DEFAULT_ELBOW_BEND, lerp(3.5, 0.2, throwT), powerT);
+      branchElbowBend = lerp(DEFAULT_ELBOW_BEND, lerp(3.5, 0.2, throwT), powerT);
     } else if (isPasting) {
       // 貼り付け: 足先は右側に残したまま、膝だけ左へ入れる。腰を深く屈めて左へ前屈みになる(決定版検証ツールの値を踏襲)
       hip.x -= 2;
@@ -386,16 +393,44 @@ export class StickmanState {
       footL = { x: -4, y: 7 };
       footR = { x: 4, y: -1 };
     } else if (this.hopActive) {
-      // 大きな移動の小さいホップ: 左から右へ跳ぶイメージで、前傾しながら腕・脚が後方(左)へ流れる
-      head.cx += hopLeanAmt * 6;
-      neck.x += hopLeanAmt * 4;
-      hip.x += hopLeanAmt * 3;
-      armL = { x: neutral.armL.x - hopLeanAmt * 10, y: neutral.armL.y + hopLeanAmt * 5 };
-      armR = { x: neutral.armR.x + hopLeanAmt * 10, y: neutral.armR.y - hopLeanAmt * 7 };
-      kneeL = { x: neutral.legL.x / 2 - hopLeanAmt * 6, y: (hip.y + neutral.legL.y) / 2 + hopLeanAmt * 3 };
-      kneeR = { x: neutral.legR.x / 2 + hopLeanAmt * 4, y: (hip.y + neutral.legR.y) / 2 - hopLeanAmt * 2 };
-      footL = { x: neutral.legL.x - hopLeanAmt * 9, y: neutral.legL.y };
-      footR = { x: neutral.legR.x + hopLeanAmt * 7, y: neutral.legR.y - hopLeanAmt * 3 };
+      // 大きな横移動のホップ: 進行方向側の肘を曲げて前に突き出し、その肘に引っぱられるように飛び出す。
+      // 反対の腕は後ろへまっすぐ伸ばし、後ろ脚は斜めに蹴り出し、前脚は膝を上げて踏み出す。
+      // 座標は右へ飛ぶ場合で書いてあり、左へ飛ぶ時はd=-1にしてx方向だけ左右反転する
+      const d = this.hopDir;
+      const a = hopLeanAmt;
+      hip.x += d * a;
+      hip.y += a;
+      neck.x += d * 6 * a;
+      neck.y += 1.5 * a;
+      head.cx += d * 7.8 * a;
+      head.cy += 1.3 * a;
+      const shoulder = { x: neck.x + (hip.x - neck.x) * 0.3, y: neck.y + (hip.y - neck.y) * 0.3 }; // render.tsの肩と同じ位置
+      const leadHand = lerpPoint(d > 0 ? neutral.armR : neutral.armL, { x: shoulder.x + d * 2.5, y: shoulder.y + 3.5 }, a);
+      const leadElbowAuto = { x: (shoulder.x + leadHand.x) / 2, y: (shoulder.y + leadHand.y) / 2 + DEFAULT_ELBOW_BEND };
+      const leadElbow = lerpPoint(leadElbowAuto, { x: shoulder.x + d * 8.5, y: shoulder.y + 0.3 }, a);
+      const trailHand = lerpPoint(d > 0 ? neutral.armL : neutral.armR, { x: shoulder.x - d * 16, y: shoulder.y - 0.5 }, a);
+      const backFoot = lerpPoint(d > 0 ? neutral.legL : neutral.legR, { x: hip.x - d * 10, y: neutral.legL.y }, a);
+      const backKnee = lerpPoint(hip, backFoot, 0.5);
+      const frontFoot = lerpPoint(d > 0 ? neutral.legR : neutral.legL, { x: hip.x + d * 8.5, y: hip.y + 10 }, a);
+      const frontKnee = lerpPoint(lerpPoint(hip, frontFoot, 0.5), { x: hip.x + d * 8, y: hip.y + 1 }, a);
+      if (d > 0) {
+        armR = leadHand;
+        elbowROverride = leadElbow;
+        armL = trailHand;
+        footL = backFoot;
+        kneeL = backKnee;
+        footR = frontFoot;
+        kneeR = frontKnee;
+      } else {
+        armL = leadHand;
+        elbowLOverride = leadElbow;
+        armR = trailHand;
+        footR = backFoot;
+        kneeR = backKnee;
+        footL = frontFoot;
+        kneeL = frontKnee;
+      }
+      branchElbowBend = lerp(DEFAULT_ELBOW_BEND, 0.3, a); // 後ろへ伸ばす腕はまっすぐに
     } else if (isTyping) {
       // 真横から見た歩行サイクル(4コマ): 接地(前)→振り出し中→接地(反転)→振り出し中→...
       // ※ 前後2コマの単純な入れ替えだと左右の脚が同じ形で描画されるため絵が変わらないバグを踏んだので、
@@ -527,6 +562,8 @@ export class StickmanState {
     neck.y += jumpY + hopY + comboHopY;
     hip.y += jumpY + hopY + comboHopY;
     armL.y += jumpY + hopY + comboHopY;
+    if (elbowLOverride) elbowLOverride.y += jumpY + hopY + comboHopY;
+    if (elbowROverride) elbowROverride.y += jumpY + hopY + comboHopY;
     armR.y += jumpY + hopY + comboHopY;
     kneeL.y += jumpY;
     kneeR.y += jumpY;
@@ -534,8 +571,8 @@ export class StickmanState {
     footR.y += jumpY + (hopY + comboHopY) * 0.4;
 
     // 助走/着地の踏ん張り中は肘をさらに曲げ、ジャンプの頂点に近づくほど腕を伸ばし切る
-    const elbowBend = throwElbowBend !== null
-      ? throwElbowBend
+    const elbowBend = branchElbowBend !== null
+      ? branchElbowBend
       : isTyping
       ? TYPING_ELBOW_BEND
       : isSelecting
@@ -565,6 +602,8 @@ export class StickmanState {
       legL: footL,
       legR: footR,
       elbowBend,
+      elbowL: elbowLOverride,
+      elbowR: elbowROverride,
       squashAmt: this.squashAmt,
       blinkOpacity,
       status,

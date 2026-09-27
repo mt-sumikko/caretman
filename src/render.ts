@@ -84,8 +84,12 @@ export class StickmanRenderer {
       x: neck.x + (hip.x - neck.x) * 0.3,
       y: neck.y + (hip.y - neck.y) * 0.3,
     };
-    const elbowL: Point = { x: (shoulder.x + armL.x) / 2, y: (shoulder.y + armL.y) / 2 + pose.elbowBend };
-    const elbowR: Point = { x: (shoulder.x + armR.x) / 2, y: (shoulder.y + armR.y) / 2 + pose.elbowBend };
+    const elbowL: Point = pose.elbowL
+      ? jitterPoint(pose.elbowL, a)
+      : { x: (shoulder.x + armL.x) / 2, y: (shoulder.y + armL.y) / 2 + pose.elbowBend };
+    const elbowR: Point = pose.elbowR
+      ? jitterPoint(pose.elbowR, a)
+      : { x: (shoulder.x + armR.x) / 2, y: (shoulder.y + armR.y) / 2 + pose.elbowBend };
 
     const headCx = pose.head.cx + jitter(a);
     const headCy = pose.head.cy + jitter(a * 0.6);

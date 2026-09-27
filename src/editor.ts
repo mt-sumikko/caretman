@@ -1,4 +1,4 @@
-import { StickmanState } from './pose';
+import { StickmanState, HOP_DURATION } from './pose';
 import { StickmanRenderer, type RendererElements } from './render';
 import type { Pose } from './types';
 import { delay } from './utils';
@@ -317,12 +317,12 @@ export class CaretmanEditor {
       Math.abs(x - this.lastCaretX) >= hopDistanceThreshold
     ) {
       isHop = true;
-      this.state.triggerHop(performance.now());
+      this.state.triggerHop(performance.now(), x - this.lastCaretX);
     }
     this.lastCaretX = x;
 
     // ジャンプ/ホップでの移動はふわっと、通常の移動は素早く
-    const posDuration = moveKind === 'jump' ? 350 : isHop ? 180 : 90;
+    const posDuration = moveKind === 'jump' ? 350 : isHop ? HOP_DURATION : 90;
     const posEasing = moveKind === 'jump' || isHop ? 'ease-out' : 'linear';
     this.figure.style.transition = `left ${posDuration}ms ${posEasing}, top ${posDuration}ms ${posEasing}, width 120ms ease, height 120ms ease, opacity 150ms ease`;
 
