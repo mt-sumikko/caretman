@@ -248,11 +248,6 @@ export class CaretmanEditor {
     }
     this.lastLineY = y;
 
-    // 移動の間隔を計測(歩き⇔走りの速さの判定に使う)。ジャンプ時/変換中は計測対象外
-    if (moveKind !== 'jump' && moveKind !== 'hop' && !this.state.isComposing()) {
-      this.state.recordMoveInterval(performance.now());
-    }
-
     // ジャンプでの移動は跳躍の弧に合わせてゆっくり、通常の移動は素早く
     const posDuration = moveKind === 'jump' ? 350 : moveKind === 'hop' ? 180 : 90;
     const posEasing = moveKind ? 'ease-out' : 'linear';

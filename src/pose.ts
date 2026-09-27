@@ -8,8 +8,7 @@ const TYPE_HOLD_MS = 300;
 const ANTICIPATE_DURATION = 130;
 const JUMP_DURATION = 350;
 const BRACE_DURATION = 220;
-const WALK_STEP_MIN_MS = 75; // 走っている時の最速コマ間隔
-const WALK_STEP_MAX_MS = 230; // ゆっくり歩いている時のコマ間隔
+const WALK_PHASE_MS = 140; // 歩行の4コマ切り替え間隔(常に一定。速さは移動そのものの速さで表現する)
 const THROW_DURATION = 220;
 const CONFIRM_HOP_DURATION = 180; // 変換確定時の小さいホップ
 const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
@@ -53,8 +52,6 @@ export class StickmanState {
   private throwStart = 0;
   private confirmHopActive = false;
   private confirmHopStart = 0;
-  private moveIntervalEMA = 260; // 直近の移動間隔の平均(小さいほど速く動いている=走り)
-  private lastMoveTimestamp = 0;
   private composing = false;
   private focused = true;
 
@@ -65,14 +62,6 @@ export class StickmanState {
 
   recordActivity(now: number): void {
     this.lastKeyTime = now;
-  }
-
-  recordMoveInterval(now: number): void {
-    if (this.lastMoveTimestamp) {
-      const interval = Math.min(900, now - this.lastMoveTimestamp);
-      this.moveIntervalEMA += (interval - this.moveIntervalEMA) * 0.3;
-    }
-    this.lastMoveTimestamp = now;
   }
 
   setComposing(v: boolean): void {
@@ -312,21 +301,18 @@ export class StickmanState {
       // 真横から見た歩行サイクル(4コマ): 接地(前)→振り出し中→接地(反転)→振り出し中→...
       // ※ 前後2コマの単純な入れ替えだと左右の脚が同じ形で描画されるため絵が変わらないバグを踏んだので、
       //   間に「片方の脚が浮いて振り出し中」の非対称なコマを挟んだ4コマ構成にしている
-      const stepMs = Math.max(WALK_STEP_MIN_MS, Math.min(WALK_STEP_MAX_MS, this.moveIntervalEMA * 0.55));
-      const runAmt = 1 - (stepMs - WALK_STEP_MIN_MS) / (WALK_STEP_MAX_MS - WALK_STEP_MIN_MS); // 0=歩き / 1=走り
-      const front = { x: lerp(9, 13.1, runAmt), y: lerp(8.4, 7.1, runAmt) };
-      const frontKnee = { x: lerp(4, 6, runAmt), y: lerp(3, 2, runAmt) };
-      const back = { x: lerp(-10.2, -15.8, runAmt), y: lerp(7.6, 3.7, runAmt) };
-      const backKnee = { x: lerp(-3, -5, runAmt), y: lerp(-2, -6, runAmt) };
-      const swingFoot = { x: 0, y: lerp(3, 0, runAmt) }; // 振り出し中、膝を高く曲げて浮かせた脚
-      const swingKnee = { x: lerp(2, 3, runAmt), y: lerp(-7, -10, runAmt) };
+      const front = { x: 9, y: 8.4 };
+      const frontKnee = { x: 4, y: 3 };
+      const back = { x: -10.2, y: 7.6 };
+      const backKnee = { x: -3, y: -2 };
+      const swingFoot = { x: 0, y: 3 }; // 振り出し中、膝を高く曲げて浮かせた脚
+      const swingKnee = { x: 2, y: -7 };
       const plantFoot = { x: 0, y: 8 }; // 振り出し中、支えてる方の脚(腰の真下でほぼ直立)
       const plantKnee = { x: 0, y: 3 };
-      const armFwd = { x: lerp(-7.4, -11.9, runAmt), y: lerp(-15.9, -19.6, runAmt) };
-      const armBack = { x: lerp(10, 13.5, runAmt), y: lerp(-18.5, -26, runAmt) };
-      const bounce = lerp(1.6, 3.2, runAmt);
-      const phaseMs = lerp(140, 55, runAmt);
-      const phase = Math.floor(now / phaseMs) % 4;
+      const armFwd = { x: -7.4, y: -15.9 };
+      const armBack = { x: 10, y: -18.5 };
+      const bounce = 1.6;
+      const phase = Math.floor(now / WALK_PHASE_MS) % 4;
 
       if (phase === 0) {
         footL = front;

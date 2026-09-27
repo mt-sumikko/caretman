@@ -37,7 +37,6 @@ export type DemoState =
   | 'shortIdle'
   | 'shortIdleBetween'
   | 'walk'
-  | 'run'
   | 'longIdle'
   | 'givenUp'
   | 'jump'
@@ -51,8 +50,7 @@ export const DEMO_STATES: { value: DemoState; label: string; note?: string }[] =
   { value: 'base', label: '基本ポーズ' },
   { value: 'shortIdle', label: '短い待機' },
   { value: 'shortIdleBetween', label: '短い待機(文字の間)' },
-  { value: 'walk', label: '歩き(遅い)' },
-  { value: 'run', label: '走り(速い)' },
+  { value: 'walk', label: '歩き' },
   { value: 'longIdle', label: '長い待機(煽り)' },
   { value: 'givenUp', label: 'あきらめて着席' },
   { value: 'jump', label: '改行ジャンプ' },
@@ -96,7 +94,7 @@ export class DemoStickmanState {
     const isBase = demoState === 'base';
     const isShortIdle = demoState === 'shortIdle' || demoState === 'shortIdleBetween';
     const betweenChars = demoState === 'shortIdleBetween';
-    const isTyping = demoState === 'walk' || demoState === 'run';
+    const isTyping = demoState === 'walk';
     const isLongIdle = demoState === 'longIdle';
     const isGivenUp = demoState === 'givenUp';
     const isSelecting = demoState === 'selecting';
@@ -274,21 +272,18 @@ export class DemoStickmanState {
       footL = { x: neutral.legL.x - hopLeanAmt * 9, y: neutral.legL.y };
       footR = { x: neutral.legR.x + hopLeanAmt * 7, y: neutral.legR.y - hopLeanAmt * 3 };
     } else if (isTyping) {
-      // 歩き/走りは連続ブレンドではなく固定値で切り替える(review用途では単独で見比べたいため)
-      const isRun = demoState === 'run';
-      const phaseMs = isRun ? 55 : 140;
-      const front = isRun ? { x: 13.1, y: 7.1 } : { x: 9, y: 8.4 };
-      const frontKnee = isRun ? { x: 6, y: 2 } : { x: 4, y: 3 };
-      const back = isRun ? { x: -15.8, y: 3.7 } : { x: -10.2, y: 7.6 };
-      const backKnee = isRun ? { x: -5, y: -6 } : { x: -3, y: -2 };
-      const swingFoot = isRun ? { x: 0, y: 0 } : { x: 0, y: 3 };
-      const swingKnee = isRun ? { x: 3, y: -10 } : { x: 2, y: -7 };
+      const front = { x: 9, y: 8.4 };
+      const frontKnee = { x: 4, y: 3 };
+      const back = { x: -10.2, y: 7.6 };
+      const backKnee = { x: -3, y: -2 };
+      const swingFoot = { x: 0, y: 3 };
+      const swingKnee = { x: 2, y: -7 };
       const plantFoot = { x: 0, y: 8 };
       const plantKnee = { x: 0, y: 3 };
-      const armFwd = isRun ? { x: -11.9, y: -19.6 } : { x: -7.4, y: -15.9 };
-      const armBack = isRun ? { x: 13.5, y: -26 } : { x: 10, y: -18.5 };
-      const bounce = isRun ? 3.2 : 1.6;
-      const phase = Math.floor(now / phaseMs) % 4;
+      const armFwd = { x: -7.4, y: -15.9 };
+      const armBack = { x: 10, y: -18.5 };
+      const bounce = 1.6;
+      const phase = Math.floor(now / 140) % 4;
 
       if (phase === 0) {
         footL = front;
