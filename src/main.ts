@@ -143,6 +143,14 @@ function isMobileDevice(): boolean {
     if (target instanceof Node && (spPanel.contains(target) || spBtn.contains(target))) return;
     setPanelOpen(false);
   });
+  // マウス操作を前提にした外側クリックでの閉じ方だけだと、キーボード操作では開いたパネルを
+  // 閉じる手段がなくなってしまうため、Escapeでも閉じられるようにする(閉じたらボタンへ焦点を戻す)
+  spPanel.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      setPanelOpen(false);
+      spBtn.focus();
+    }
+  });
 }
 
 // デバッグパネルは開発ビルド(npm run dev)でのみ生成する。import.meta.env.DEVは本番ビルドで
