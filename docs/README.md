@@ -13,4 +13,4 @@ Code(このリポジトリ)へ移行する前、チャットでのプロトタ�
 
 ## favicon
 
-- [`favicon/`](./favicon/) — favicon(キャレットのフリのポーズ)の元データ。`caretman-icon.svg`が透過の元絵、`-rounded`はブラウザのタブ用(背景色#FAF8F3の角丸)、`-square`はiPhoneのホーム画面用(角丸はiOSが付ける)。実際に使っている`favicon.ico`(16/32/48px)と`apple-touch-icon.png`(180px)は`public/`に置いてある
+- [`favicon/`](./favicon/) — favicon(キャレットのフリのポーズ)の元データ。アプリと同じポーズ計算・描画(pose.ts / render.ts)で描き出したもの。`caretman-icon.svg`が透過の元絵、`-rounded`はブラウザのタブ用(背景色#FAF8F3の角丸)、`-square`はiPhoneのホーム画面用(角丸はiOSが付ける)。実際に使っている`favicon.ico`(16/32/48px)と`apple-touch-icon.png`(180px)は`public/`に置いてある
