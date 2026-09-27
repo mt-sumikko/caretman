@@ -2,6 +2,9 @@
   --ink: #2c2320;
   --bg: #faf8f3;
   --menu-bg: #fafafa;
+  --panel-bg: #fafaf9;
+  --divider: rgba(44, 35, 32, 0.15);
+  --ink-muted: rgba(44, 35, 32, 0.6);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -9,6 +12,9 @@
     --ink: #eae7dd;
     --bg: #1c1b18;
     --menu-bg: #26241f;
+    --panel-bg: #221f1b;
+    --divider: rgba(234, 231, 221, 0.15);
+    --ink-muted: rgba(234, 231, 221, 0.6);
   }
 }
 
@@ -101,14 +107,15 @@ body {
   }
 }
 
-.menu-btn {
+/* ダウンロードボタン・ドロップダウンはSPでのみ表示する(PCはヘッダーの.txt/.mdのみ) */
+.sp-dl-btn {
+  display: none;
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  top: 20px;
+  right: 16px;
   width: 48px;
   height: 48px;
-  border-radius: 50px;
-  display: flex;
+  border-radius: 50%;
   align-items: center;
   justify-content: center;
   appearance: none;
@@ -116,132 +123,91 @@ body {
   background: var(--menu-bg);
   color: var(--ink);
   opacity: 0.9;
-  box-shadow: 0 1px 2.5px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.08),
+    0 1px 10px rgba(0, 0, 0, 0.05);
   cursor: pointer;
-}
-
-.menu-panel {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  width: 260px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 24px;
-  background: var(--menu-bg);
-  border-radius: 24px;
-  box-shadow: 0 1px 2.5px rgba(0, 0, 0, 0.05);
   z-index: 1000;
 }
 
-.menu-panel[hidden] {
-  display: none;
+.sp-dl-btn svg {
+  width: 24px;
+  height: 24px;
 }
 
 @media (max-width: 768px) {
-  .menu-panel {
-    right: 16px;
-    bottom: 16px;
-  }
-}
-
-/* .txt/.mdのダウンロード行はSPでのみメニュー内に表示する(PCはヘッダーに常設) */
-.menu-dl-row {
-  display: none;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-}
-
-@media (max-width: 768px) {
-  .menu-dl-row {
+  .sp-dl-btn {
     display: flex;
   }
 }
 
-.menu-dl-btn {
-  appearance: none;
-  flex: 1 0 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 32px;
-  background: transparent;
-  border: 1px solid var(--ink);
-  color: var(--ink);
-  border-radius: 2px;
-  padding: 0 10px;
-  font-size: 14px;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.menu-dl-icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-.menu-divider {
+.sp-dl-panel {
   display: none;
-  width: 100%;
-  border: none;
-  border-top: 1px solid rgba(44, 35, 32, 0.15);
-  margin: 0;
+  position: fixed;
+  top: 76px;
+  right: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 4px 16px;
+  background: var(--panel-bg);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.08),
+    0 1px 10px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
 }
 
 @media (max-width: 768px) {
-  .menu-divider {
-    display: block;
+  .sp-dl-panel:not([hidden]) {
+    display: flex;
   }
 }
 
-.menu-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
+.sp-dl-row {
+  appearance: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  min-height: 32px;
+  padding: 12px 0;
+  font-size: 14px;
+  font-family: inherit;
   color: var(--ink);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.menu-title {
+.sp-dl-divider {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--divider);
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
 }
 
-.menu-desc {
-  margin: 0;
-  font-size: 12px;
-}
-
-.menu-github {
-  font-size: 12px;
-  color: var(--ink);
-  text-decoration: underline;
-}
-
-.menu-close {
+.footer {
   position: absolute;
+  left: 0;
   right: 0;
   bottom: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  appearance: none;
-  border: none;
-  background: var(--menu-bg);
-  color: var(--ink);
-  opacity: 0.9;
-  box-shadow: 0 1px 2.5px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
+  padding: 16px 32px;
+}
+
+.footer-link {
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--ink-muted);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+@media (max-width: 768px) {
+  .footer-link {
+    font-size: 12px;
+  }
 }
 
 .autosave-notice {

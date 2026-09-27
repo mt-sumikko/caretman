@@ -41,48 +41,24 @@
         </div>
       </div>
 
-      <button class="menu-btn" id="btn-menu" type="button" aria-label="メニュー" aria-expanded="false" aria-controls="menu-panel">
-        <svg width="28" height="28" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
-          <path
-            d="M249.23-420q-24.75 0-42.37-17.63-17.63-17.62-17.63-42.37 0-24.75 17.63-42.37Q224.48-540 249.23-540q24.75 0 42.38 17.63 17.62 17.62 17.62 42.37 0 24.75-17.62 42.37Q273.98-420 249.23-420ZM480-420q-24.75 0-42.37-17.63Q420-455.25 420-480q0-24.75 17.63-42.37Q455.25-540 480-540q24.75 0 42.37 17.63Q540-504.75 540-480q0 24.75-17.63 42.37Q504.75-420 480-420Zm230.77 0q-24.75 0-42.38-17.63-17.62-17.62-17.62-42.37 0-24.75 17.62-42.37Q686.02-540 710.77-540q24.75 0 42.37 17.63 17.63 17.62 17.63 42.37 0 24.75-17.63 42.37Q735.52-420 710.77-420Z"
-          />
+      <!-- SPのみ表示。ダウンロードアイコンのボタン(押すと直下にドロップダウンを開く) -->
+      <button class="sp-dl-btn" id="sp-dl-btn" type="button" aria-label="ダウンロード" aria-expanded="false" aria-controls="sp-dl-panel">
+        <!-- 仮のダウンロードアイコン。Figma側の正式なSVGに差し替え予定 -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 4v10" />
+          <path d="M7 10l5 5 5-5" />
+          <path d="M5 19h14" />
         </svg>
       </button>
+      <div class="sp-dl-panel" id="sp-dl-panel" hidden>
+        <button class="sp-dl-row" id="sp-dl-txt" type="button">.txtをダウンロード</button>
+        <hr class="sp-dl-divider" />
+        <button class="sp-dl-row" id="sp-dl-md" type="button">.mdをダウンロード</button>
+      </div>
 
-      <aside class="menu-panel" id="menu-panel" hidden>
-        <div class="menu-dl-row">
-          <button class="menu-dl-btn" id="menu-dl-txt" type="button">
-            <!-- 仮のダウンロードアイコン。Figma側の正式なSVGに差し替え予定 -->
-            <svg class="menu-dl-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 4v10" />
-              <path d="M7 10l5 5 5-5" />
-              <path d="M5 19h14" />
-            </svg>
-            .txt
-          </button>
-          <button class="menu-dl-btn" id="menu-dl-md" type="button">
-            <svg class="menu-dl-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 4v10" />
-              <path d="M7 10l5 5 5-5" />
-              <path d="M5 19h14" />
-            </svg>
-            .md
-          </button>
-        </div>
-        <hr class="menu-divider" />
-        <div class="menu-info">
-          <p class="menu-title">caretman</p>
-          <p class="menu-desc">動く棒人間と一緒に書けるエディタ</p>
-          <a class="menu-github" href="https://github.com/mt-sumikko/caretman" target="_blank" rel="noopener">Github</a>
-        </div>
-        <button class="menu-close" id="btn-menu-close" type="button" aria-label="閉じる">
-          <svg width="28" height="28" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
-            <path
-              d="M280-120q-17 0-28.5-11.5T240-160q0-17 11.5-28.5T280-200h400q17 0 28.5 11.5T720-160q0 17-11.5 28.5T680-120H280Z"
-            />
-          </svg>
-        </button>
-      </aside>
+      <footer class="footer">
+        <a class="footer-link" href="https://github.com/mt-sumikko/caretman" target="_blank" rel="noopener">caretman</a>
+      </footer>
     </div>
 
     <div class="autosave-notice" id="autosave-notice" hidden>入力内容はこのブラウザに自動保存されます</div>

@@ -63,7 +63,7 @@ if (shouldShowAutosaveNotice()) {
 
 for (const [txtId, mdId] of [
   ['btn-dl-txt', 'btn-dl-md'],
-  ['menu-dl-txt', 'menu-dl-md'],
+  ['sp-dl-txt', 'sp-dl-md'],
 ] as const) {
   requireEl<HTMLButtonElement>(txtId).addEventListener('click', () => {
     downloadText(editor.getPlainText(), 'txt', 'text/plain;charset=utf-8');
@@ -74,22 +74,23 @@ for (const [txtId, mdId] of [
 }
 
 {
-  const menuToggle = requireEl<HTMLButtonElement>('btn-menu');
-  const menuPanel = requireEl<HTMLElement>('menu-panel');
-  const menuClose = requireEl<HTMLButtonElement>('btn-menu-close');
+  const dlToggle = requireEl<HTMLButtonElement>('sp-dl-btn');
+  const dlPanel = requireEl<HTMLElement>('sp-dl-panel');
 
-  const setMenuOpen = (open: boolean): void => {
-    menuPanel.hidden = !open;
-    menuToggle.setAttribute('aria-expanded', String(open));
+  const setPanelOpen = (open: boolean): void => {
+    dlPanel.hidden = !open;
+    dlToggle.setAttribute('aria-expanded', String(open));
   };
 
-  menuToggle.addEventListener('click', () => setMenuOpen(Boolean(menuPanel.hidden)));
-  menuClose.addEventListener('click', () => setMenuOpen(false));
+  dlToggle.addEventListener('click', () => setPanelOpen(Boolean(dlPanel.hidden)));
+  // ダウンロードを選んだらパネルを閉じる
+  requireEl<HTMLButtonElement>('sp-dl-txt').addEventListener('click', () => setPanelOpen(false));
+  requireEl<HTMLButtonElement>('sp-dl-md').addEventListener('click', () => setPanelOpen(false));
   document.addEventListener('pointerdown', (e) => {
-    if (menuPanel.hidden) return;
+    if (dlPanel.hidden) return;
     const target = e.target;
-    if (target instanceof Node && (menuPanel.contains(target) || menuToggle.contains(target))) return;
-    setMenuOpen(false);
+    if (target instanceof Node && (dlPanel.contains(target) || dlToggle.contains(target))) return;
+    setPanelOpen(false);
   });
 }
 
