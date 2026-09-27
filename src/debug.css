@@ -96,3 +96,8 @@
 .debug-btn:active {
   transform: scale(0.97);
 }
+
+.debug-link {
+  color: var(--ink);
+  text-decoration: underline;
+}

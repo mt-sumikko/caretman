@@ -3,6 +3,7 @@ import './debug.css';
 import { CaretmanEditor } from './editor';
 import { DebugPanel } from './debugPanel';
 import { downloadText } from './download';
+import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
 
 function requireEl<T extends Element>(id: string): T {
   const el = document.getElementById(id);
@@ -30,11 +31,10 @@ const editor = new CaretmanEditor({
 });
 editor.init();
 
-const INTRO_DEMO_KEY = 'caretman.introDemoShown';
 const INTRO_DEMO_TEXT = 'いっしょに書いてこ〜！';
 try {
-  if (!localStorage.getItem(INTRO_DEMO_KEY)) {
-    localStorage.setItem(INTRO_DEMO_KEY, '1');
+  if (!localStorage.getItem(INTRO_DEMO_STORAGE_KEY)) {
+    localStorage.setItem(INTRO_DEMO_STORAGE_KEY, '1');
     void editor.runIntroDemo(INTRO_DEMO_TEXT);
   }
 } catch {
@@ -59,6 +59,7 @@ new DebugPanel(
     gapOut: requireEl('debug-gap-out'),
     giveUpButton: requireEl('debug-giveup'),
     textureToggle: requireEl('debug-texture'),
+    resetIntroButton: requireEl('debug-reset-intro'),
   },
   editor,
 );

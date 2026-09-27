@@ -1,4 +1,5 @@
 import type { CaretmanEditor } from './editor';
+import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
 
 const STATUS_POLL_MS = 200;
 
@@ -12,6 +13,7 @@ export interface DebugPanelElements {
   gapOut: HTMLElement;
   giveUpButton: HTMLButtonElement;
   textureToggle: HTMLInputElement;
+  resetIntroButton: HTMLButtonElement;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -39,7 +41,8 @@ export class DebugPanel {
   }
 
   private bind(): void {
-    const { toggleButton, panel, statusEl, scaleInput, scaleOut, gapInput, gapOut, giveUpButton, textureToggle } = this.els;
+    const { toggleButton, panel, statusEl, scaleInput, scaleOut, gapInput, gapOut, giveUpButton, textureToggle, resetIntroButton } =
+      this.els;
 
     if (!this.editor.roughAvailable) {
       textureToggle.checked = false;
@@ -67,6 +70,15 @@ export class DebugPanel {
     giveUpButton.addEventListener('click', () => this.editor.debugFastForwardToGivenUp());
 
     textureToggle.addEventListener('change', () => this.editor.setTextureEnabled(textureToggle.checked));
+
+    resetIntroButton.addEventListener('click', () => {
+      try {
+        localStorage.removeItem(INTRO_DEMO_STORAGE_KEY);
+      } catch {
+        // プライベートブラウジング等でlocalStorageが使えない場合は何もしない
+      }
+      location.reload();
+    });
 
     // 初期スライダー値をエディタ側にも反映する
     this.editor.setScale(parseFloat(scaleInput.value));
