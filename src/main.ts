@@ -1,6 +1,6 @@
 import './style.css';
 import { CaretmanEditor } from './editor';
-import { downloadText } from './download';
+import { defaultFilename, downloadText } from './download';
 import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
 import { Autosaver, contentToHtml, loadSavedContent, shouldShowAutosaveNotice } from './autosave';
 
@@ -68,12 +68,12 @@ requireEl<HTMLButtonElement>('btn-dl-md').addEventListener('click', () => {
   downloadText(editor.getPlainText(), 'md', 'text/markdown;charset=utf-8');
 });
 
-// 仮の共有アイコン。UIリサーチが済んだら正式なSVGに差し替え予定
-const SHARE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <path d="M12 16V4" />
-  <path d="M7 8l5-5 5 5" />
-  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
-</svg>`;
+const SHARE_ICON_SVG = `<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M252.31-100Q222-100 201-121q-21-21-21-51.31v-375.38Q180-578 201-599q21-21 51.31-21h72.31q12.76 0 21.38 8.62 8.61 8.61 8.61 21.38T346-568.62q-8.62 8.62-21.38 8.62h-72.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46v375.38q0 4.62 3.85 8.46 3.84 3.85 8.46 3.85h455.38q4.62 0 8.46-3.85 3.85-3.84 3.85-8.46v-375.38q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85h-72.31q-12.76 0-21.38-8.62-8.61-8.61-8.61-21.38t8.61-21.38q8.62-8.62 21.38-8.62h72.31Q738-620 759-599q21 21 21 51.31v375.38Q780-142 759-121q-21 21-51.31 21H252.31Zm206.31-238.62Q450-347.23 450-360v-411.23l-52.92 52.92q-8.93 8.93-20.89 8.81-11.96-.11-21.27-9.42-8.69-9.31-9-21.08-.3-11.77 9-21.07l99.77-99.77q5.62-5.62 11.85-7.93 6.23-2.3 13.46-2.3t13.46 2.3q6.23 2.31 11.85 7.93l99.77 99.77q8.3 8.3 8.5 20.57.19 12.27-8.5 21.58-9.31 9.31-21.39 9.31-12.07 0-21.38-9.31L510-771.23V-360q0 12.77-8.62 21.38Q492.77-330 480-330t-21.38-8.62Z"/></svg>`;
+
+/** SP端末(navigator.share対応時)で共有するテキストファイルを、.txt/.mdダウンロードと同じ命名規則で作る */
+function buildShareFile(text: string, ext: 'txt' | 'md', mime: string): File {
+  return new File([text], defaultFilename(ext), { type: mime });
+}
 
 {
   const spBtn = requireEl<HTMLButtonElement>('sp-dl-btn');
@@ -81,7 +81,8 @@ const SHARE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 
   // SPで打ったテキストは、ファイルで欲しいというより他のアプリへ転記したいニーズの方が
   // 強いと想定し、Web Share API(navigator.share)に対応した端末ではOS標準の共有シートへ
-  // 直接テキストを渡す。1タップで完結させ、ドロップダウンは出さない
+  // 直接渡す。1タップで完結させ、ドロップダウンは出さない。ファイル共有(files)に対応した
+  // 環境ではテキストと.txtファイルを一緒に渡し、受け取り先アプリ側に委ねる
   if (navigator.share) {
     spBtn.setAttribute('aria-label', '共有');
     spBtn.removeAttribute('aria-expanded');
@@ -92,7 +93,9 @@ const SHARE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
     spBtn.addEventListener('click', () => {
       const text = editor.getPlainText();
       if (!text.trim()) return;
-      navigator.share({ text }).catch(() => {
+      const file = buildShareFile(text, 'txt', 'text/plain;charset=utf-8');
+      const shareData: ShareData = navigator.canShare?.({ files: [file] }) ? { text, files: [file] } : { text };
+      navigator.share(shareData).catch(() => {
         // ユーザーがキャンセルした場合などは何もしない
       });
     });
