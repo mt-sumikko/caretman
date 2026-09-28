@@ -258,10 +258,13 @@ export class CaretmanEditor {
     if (!this.editor.contains(liveRange.startContainer)) return null;
     const range = liveRange.cloneRange();
     // IME変換中は、キャレットが入力中の文字の末尾にある時だけ測る。変換中のブラウザは選択範囲を
-    // 「入力中の文字列全体」や「変換中の文節」に切り替えるが、それを測ると文節ごとに位置が飛んで往復して
-    // しまうため、その間は位置を更新せずその場で待つ(確定した時に、縮んだ/伸びたぶんだけ動く)
-    if (this.state.isComposing() && !liveRange.collapsed) return null;
-    range.collapse(true);
+    // 「入力中の文字列全体」や「変換中の文節」に切り替えるが、composition textが変わった時は
+    // 末尾位置を測りたいので、末尾に置き直して測る
+    if (this.state.isComposing() && !liveRange.collapsed) {
+      range.collapse(false); // 末尾に置き直す
+    } else {
+      range.collapse(true);
+    }
     this.moveIntoLine(range);
     const rects = range.getClientRects();
     if (rects.length > 0) return rects[0];
