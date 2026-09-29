@@ -65,6 +65,12 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  transition: opacity 150ms ease, cursor 150ms ease;
+}
+
+.dl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .dl-btn svg {
@@ -172,6 +178,11 @@ body {
   height: 24px;
 }
 
+.sp-dl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .sp-dl-btn {
     display: flex;
@@ -240,6 +251,7 @@ body {
   left: 20px;
   top: 20px;
   opacity: 1;
+  --figure-opacity: 1;
 }
 
 .figure.composing {

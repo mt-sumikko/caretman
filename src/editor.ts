@@ -485,7 +485,10 @@ export class CaretmanEditor {
 
     this.editor.addEventListener('compositionend', () => {
       this.state.setComposing(false);
-      this.figure.classList.remove('composing');
+      // opacityの変化を滑らかにするため、classを外すタイミングをちょっと遅延させる(transition: 150ms)
+      requestAnimationFrame(() => {
+        this.figure.classList.remove('composing');
+      });
       this.updatePlaceholder();
       // 変換確定専用のモーションはない。変換候補を選んでいる間はその場で待っているので、確定で文字数が
       // 変わっていれば、ここでの位置合わせで距離に応じて歩き/ホップする(変わらなければ何もせず、
