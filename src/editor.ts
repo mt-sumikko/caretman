@@ -21,6 +21,7 @@ const BASE_HEIGHT_MULT = 1.35; // フォントサイズに対する基準倍率(
 // 立ちポーズの足位置(viewBox上のy=8)は、figureボックスの下端(y=16)より上にある。
 // その分だけ下にずらして、足先を文字のベースライン(=ボックス下端に合わせているcaret位置)へ寄せる
 const FOOT_BASELINE_OFFSET_RATIO = 3 / 60;
+const COMPOSITION_INPUT_TYPES = new Set(['insertCompositionText', 'deleteCompositionText', 'insertFromComposition']);
 
 export interface CaretmanEditorElements {
   editor: HTMLElement;
@@ -411,8 +412,11 @@ export class CaretmanEditor {
       const inputEvent = e as InputEvent;
       // IME入力中・変換確定のinputは操作として数えない(打鍵はcompositionupdateで数えている)。
       // 数えると、候補を眺めている間にキャレットのフリ(腕上げ)に入った棒人間が、動いてもいないのに
-      // 確定の瞬間に基本ポーズへパッと戻ってしまう
-      if (!inputEvent.isComposing && inputEvent.inputType !== 'insertFromComposition') {
+      // 確定の瞬間に基本ポーズへパッと戻ってしまう。Safari系は確定時に入力中の文字を消して入れ直す
+      // input(deleteCompositionText等)をisComposing=falseで送ることがあるので、inputTypeでも除外する
+      const isCompositionInput =
+        inputEvent.isComposing || COMPOSITION_INPUT_TYPES.has(inputEvent.inputType);
+      if (!isCompositionInput) {
         this.state.recordActivity(performance.now());
       }
       const newLength = this.editor.textContent?.length ?? 0;
@@ -420,7 +424,7 @@ export class CaretmanEditor {
       // 文字数が変わらないので投げず、ただの移動(同じ行なら歩き、行をまたげば改行ジャンプ)として扱う
       // (Undo/RedoもinputTypeだけでは削除か追加か分からないので、同じく文字数の増減で判定する)
       const isDeleteType =
-        (inputEvent.inputType?.startsWith('delete') && !inputEvent.isComposing) ||
+        (inputEvent.inputType?.startsWith('delete') && !isCompositionInput) ||
         inputEvent.inputType?.startsWith('history');
       if (isDeleteType && newLength < this.lastTextLength) {
         this.state.triggerThrow(performance.now(), this.lastTextLength - newLength);
@@ -485,10 +489,7 @@ export class CaretmanEditor {
 
     this.editor.addEventListener('compositionend', () => {
       this.state.setComposing(false);
-      // opacityの変化を滑らかにするため、classを外すタイミングをちょっと遅延させる(transition: 150ms)
-      requestAnimationFrame(() => {
-        this.figure.classList.remove('composing');
-      });
+      this.figure.classList.remove('composing');
       this.updatePlaceholder();
       // 変換確定専用のモーションはない。変換候補を選んでいる間はその場で待っているので、確定で文字数が
       // 変わっていれば、ここでの位置合わせで距離に応じて歩き/ホップする(変わらなければ何もせず、

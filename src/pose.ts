@@ -31,6 +31,7 @@ const THROW_DURATION_PER_CHAR = 12; // 削除した文字数が多いほど、�
 const PASTE_DURATION_BASE = 220;
 const PASTE_DURATION_MAX = 520;
 const PASTE_DURATION_PER_CHAR = 12; // 貼り付けた文字量が多いほど、押し込む動作の余韻を長くする(放り投げと対称)
+const PASTE_RETURN_MS = 150; // 押し込み終わってから立ち姿へ戻る時間。勢いは残しつつ、パッと切り替わって見えない長さ
 export const HOP_DURATION = 240; // 同一行内で大きく横移動した時の「複数文字ホップ」。editor.tsの横移動アニメもこの長さに揃える
 const ARM_RISE_SPEED = 0.22; // 腕を上げ直す速さ(0.2秒程度で戻る)
 const SIT_SPEED = 0.05; // 座り込みへの遷移速度
@@ -271,11 +272,15 @@ export class StickmanState {
       }
     }
 
-    // 貼り付けた時の「全力で押し込む」構え
+    // 貼り付けた時の「全力で押し込む」構え。構えきったまま押し込み、最後に立ち姿へ素早く(出だしが速いease-outで)戻る
+    let pasteAmt = 0; // 1=押し込みの構え / 0=立ち姿
     if (this.pasteActive) {
-      const pasteProgress = Math.min(1, (now - this.pasteStart) / this.pasteDuration);
+      const elapsed = now - this.pasteStart;
+      const pasteProgress = Math.min(1, elapsed / this.pasteDuration);
       if (this.pasteLineJump) comboHopY = -Math.sin(pasteProgress * Math.PI) * 10;
-      if (pasteProgress >= 1) {
+      const returnT = Math.min(1, Math.max(0, (elapsed - this.pasteDuration) / PASTE_RETURN_MS));
+      pasteAmt = (1 - returnT) ** 2;
+      if (returnT >= 1) {
         this.pasteActive = false;
         this.pasteLineJump = false;
       }
@@ -408,20 +413,21 @@ export class StickmanState {
       // 貼り付け: 貼り付けた文字を全力で押し込む構え(棒人間は左向き)。上半身を約40°前傾させて腰を低く落とし、
       // 両腕を画面左へまっすぐ突き出す。前脚(左)は膝を曲げて踏ん張り、後ろ脚(右)は膝を地面近くまで落として
       // 足先を画面右へ大きく残し、地面を蹴っている形にする
-      hip.x += 3;
-      hip.y += 7;
+      const a = pasteAmt;
+      hip.x += 3 * a;
+      hip.y += 7 * a;
       // 前傾+脚を縮めた姿勢だと胴が長く見えるので、このポーズだけ胴を短め(約14)に詰めている
-      neck.x -= 6;
-      neck.y += 14.3;
-      head.cx -= 10.2; // 頭は胴の延長線上
-      head.cy += 15.3;
-      armL = { x: -20, y: -9 }; // 頭にかからない高さで、2本の腕を上下に並べる
-      armR = { x: -19, y: -4 };
-      kneeL = { x: -7, y: -1 };
-      footL = { x: -13, y: 8 };
-      kneeR = { x: 7, y: 6 };
-      footR = { x: 15, y: 8 };
-      branchElbowBend = 0.3; // 腕はしっかり伸ばし切る
+      neck.x -= 6 * a;
+      neck.y += 14.3 * a;
+      head.cx -= 10.2 * a; // 頭は胴の延長線上
+      head.cy += 15.3 * a;
+      armL = lerpPoint(neutral.armL, { x: -20, y: -9 }, a); // 頭にかからない高さで、2本の腕を上下に並べる
+      armR = lerpPoint(neutral.armR, { x: -19, y: -4 }, a);
+      kneeL = lerpPoint(standKneeL, { x: -7, y: -1 }, a);
+      footL = lerpPoint(neutral.legL, { x: -13, y: 8 }, a);
+      kneeR = lerpPoint(standKneeR, { x: 7, y: 6 }, a);
+      footR = lerpPoint(neutral.legR, { x: 15, y: 8 }, a);
+      branchElbowBend = lerp(DEFAULT_ELBOW_BEND, 0.3, a); // 構えている間は腕をしっかり伸ばし切る
     } else if (isSelecting) {
       // 選択ポーズ: 両腕を体幹に沿ってほぼ真上に伸ばし、手先だけわずかに右へ。重心は中央寄りに保つ。
       // 左足はつま先立ちで接地、右足は膝を上げる

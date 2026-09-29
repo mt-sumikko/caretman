@@ -4,6 +4,7 @@ import { defaultFilename, downloadTxt, TXT_MIME } from './download';
 import { INTRO_DEMO_STORAGE_KEY } from './introDemo';
 import { Autosaver, contentToHtml, loadSavedContent, shouldShowAutosaveNotice } from './autosave';
 import { delay } from './utils';
+import { Toast } from './toast';
 
 /**
  * このファイルの役割(ざっくり):
@@ -47,30 +48,15 @@ const editor = new CaretmanEditor({
 editor.init();
 
 const autosaver = new Autosaver(() => editor.getPlainText());
-const dlBtn = requireEl<HTMLButtonElement>('btn-dl');
-dlBtn.disabled = true; // 初期状態では内容がないので disabled
 // 初回デモが打ち込んでいる文字は保存しない(途中で閉じると、次に開いた時にデモの文が本文として残ってしまうため)
 editor.setOnTextChanged(() => {
   if (!editor.isIntroDemoActive()) autosaver.scheduleSave();
-  // ダウンロード・共有ボタンを、内容があるときだけ有効にする
-  const hasContent = editor.getPlainText().trim().length > 0;
-  dlBtn.disabled = !hasContent;
 });
+
+const toast = new Toast(requireEl('toast'));
 
 // 自動保存の初回案内は、デモや最初の入力と被らないよう「ひと息ついたタイミング」まで待って出す
 const NOTICE_MIN_DELAY_MS = 1200;
-
-function showAutosaveNotice(): void {
-  const notice = requireEl<HTMLElement>('autosave-notice');
-  notice.hidden = false;
-  requestAnimationFrame(() => notice.classList.add('visible'));
-  setTimeout(() => {
-    notice.classList.remove('visible');
-    setTimeout(() => {
-      notice.hidden = true;
-    }, 400);
-  }, 4000);
-}
 
 // 保存済みの内容があれば復元し、無ければ(かつ初回だけ)導入デモを再生する
 void (async () => {
@@ -93,31 +79,22 @@ void (async () => {
     if (!ranDemo) await delay(NOTICE_MIN_DELAY_MS);
   }
 
-  if (shouldShowAutosaveNotice()) showAutosaveNotice();
+  if (shouldShowAutosaveNotice()) toast.show('入力内容はこのブラウザに自動保存されます');
 })();
 
-dlBtn.addEventListener('click', () => {
-  if (dlBtn.disabled) {
-    // 内容がない状態での click を説明する notification を表示
-    showDownloadHelpNotice();
+// 本文が空の時にボタンを押しても、空のファイルを渡すのではなく「書くとできること」を案内する
+// (disabledにしないのは、押せない理由が伝わらず、押した時に案内を出すこともできなくなるため)
+const EMPTY_DOWNLOAD_HINT = 'なにか書くと、.txtファイルでダウンロードできます';
+const EMPTY_SHARE_HINT = 'なにか書くと、ほかのアプリへ共有できます';
+
+requireEl<HTMLButtonElement>('btn-dl').addEventListener('click', () => {
+  const text = editor.getPlainText();
+  if (!text.trim()) {
+    toast.show(EMPTY_DOWNLOAD_HINT, 3000);
     return;
   }
-  downloadTxt(editor.getPlainText());
+  downloadTxt(text);
 });
-
-function showDownloadHelpNotice(): void {
-  const notice = requireEl<HTMLElement>('autosave-notice');
-  notice.textContent = '書いたらその内容をダウンロード・共有できます';
-  notice.hidden = false;
-  requestAnimationFrame(() => notice.classList.add('visible'));
-  setTimeout(() => {
-    notice.classList.remove('visible');
-    setTimeout(() => {
-      notice.hidden = true;
-      notice.textContent = '入力内容はこのブラウザに自動保存されます';
-    }, 400);
-  }, 3500);
-}
 
 const SHARE_ICON_SVG = `<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M252.31-100Q222-100 201-121q-21-21-21-51.31v-375.38Q180-578 201-599q21-21 51.31-21h72.31q12.76 0 21.38 8.62 8.61 8.61 8.61 21.38T346-568.62q-8.62 8.62-21.38 8.62h-72.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46v375.38q0 4.62 3.85 8.46 3.84 3.85 8.46 3.85h455.38q4.62 0 8.46-3.85 3.85-3.84 3.85-8.46v-375.38q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85h-72.31q-12.76 0-21.38-8.62-8.61-8.61-8.61-21.38t8.61-21.38q8.62-8.62 21.38-8.62h72.31Q738-620 759-599q21 21 21 51.31v375.38Q780-142 759-121q-21 21-51.31 21H252.31Zm206.31-238.62Q450-347.23 450-360v-411.23l-52.92 52.92q-8.93 8.93-20.89 8.81-11.96-.11-21.27-9.42-8.69-9.31-9-21.08-.3-11.77 9-21.07l99.77-99.77q5.62-5.62 11.85-7.93 6.23-2.3 13.46-2.3t13.46 2.3q6.23 2.31 11.85 7.93l99.77 99.77q8.3 8.3 8.5 20.57.19 12.27-8.5 21.58-9.31 9.31-21.39 9.31-12.07 0-21.38-9.31L510-771.23V-360q0 12.77-8.62 21.38Q492.77-330 480-330t-21.38-8.62Z"/></svg>`;
 
@@ -144,7 +121,7 @@ function isMobileDevice(): boolean {
   spBtn.addEventListener('click', () => {
     const text = editor.getPlainText();
     if (!text.trim()) {
-      showDownloadHelpNotice();
+      toast.show(useShare ? EMPTY_SHARE_HINT : EMPTY_DOWNLOAD_HINT, 3000);
       return;
     }
     if (!useShare) {
