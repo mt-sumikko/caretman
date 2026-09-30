@@ -85,7 +85,7 @@ void (async () => {
 // 本文が空の時にボタンを押しても、空のファイルを渡すのではなく「書くとできること」を案内する
 // (disabledにしないのは、押せない理由が伝わらず、押した時に案内を出すこともできなくなるため)
 const EMPTY_DOWNLOAD_HINT = 'なにか書くと、.txtファイルでダウンロードできます';
-const EMPTY_SHARE_HINT = 'なにか書くと、ほかのアプリへ共有できます';
+const EMPTY_SHARE_HINT = 'なにか書くと、.txtファイルを共有できます';
 
 requireEl<HTMLButtonElement>('btn-dl').addEventListener('click', () => {
   const text = editor.getPlainText();
