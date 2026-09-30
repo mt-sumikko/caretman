@@ -90,7 +90,7 @@ const EMPTY_SHARE_HINT = 'なにか書くと、.txtファイルを共有でき�
 requireEl<HTMLButtonElement>('btn-dl').addEventListener('click', () => {
   const text = editor.getPlainText();
   if (!text.trim()) {
-    toast.show(EMPTY_DOWNLOAD_HINT, 3000);
+    toast.show(EMPTY_DOWNLOAD_HINT, 5000);
     return;
   }
   downloadTxt(text);
@@ -121,7 +121,7 @@ function isMobileDevice(): boolean {
   spBtn.addEventListener('click', () => {
     const text = editor.getPlainText();
     if (!text.trim()) {
-      toast.show(useShare ? EMPTY_SHARE_HINT : EMPTY_DOWNLOAD_HINT, 3000);
+      toast.show(useShare ? EMPTY_SHARE_HINT : EMPTY_DOWNLOAD_HINT, 5000);
       return;
     }
     if (!useShare) {
