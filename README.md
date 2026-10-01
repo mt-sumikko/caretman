@@ -70,7 +70,14 @@ src/
   debugPanel.ts        開発ビルドのみで読み込まれるデバッグUI(本番ビルドからは自動で除外される)
   motionReview/        確認ページ用(state.ts=pose.tsへの合図送り役、filmstrips.ts=図鑑の描画)
 public/                favicon・OGP画像・鉛筆テクスチャ画像(textures/)
-docs/                  初期の仕様書・プロトタイプ(企画の経緯の記録)、モーション図鑑のPNG、favicon/OGP画像の元データ
+docs/
+  README.md            ドキュメント概要
+  motion.md            棒人間のモーション定義(各状態の発生条件・表現)
+  sketch/              棒人間の手描きスケッチ
+  favicon/             favicon の元データ(SVG・高解像度PNG)
+  ogp/                 OGP画像の元ファイル
+  motion-filmstrips/   モーション図鑑のPNG
+  prototype/           企画段階のドキュメント・プロトタイプ(参考資料)
 .env                   公開URL(OGPのURLに使う。秘密情報ではない)
 ```
 
