@@ -1,11 +1,17 @@
 # docs
 
-Code(このリポジトリ)へ移行する前、チャットでのプロトタイピング段階で作成された初期資料。企画の経緯・検討過程の記録として保管している。実装の現状は最新のソースコードとルートの[README.md](../README.md)を参照。
+**現在の実装仕様について：**
+実装の最新情報はルートの[README.md](../README.md)と以下のドキュメントを参照してください。
 
-- [`spec.md`](./spec.md) — 仕様書。概要・実装方針(手続き型アニメーション/rough.js+静的テクスチャマスク)・条件別モーション一覧・未決定事項・Codeへの引き継ぎメモなど
-- [`input-event-checklist.md`](./input-event-checklist.md) — テキストエディタで起こり得る入力イベントの網羅性チェック表
-- [`prototype-editor.html`](./prototype-editor.html) — 移行前の単一HTMLプロトタイプ(実際にcontenteditableでキャレット追従する版)
-- [`prototype-decision-render.html`](./prototype-decision-render.html) — 線の質感(rough.js + 静的テクスチャマスク)の比較検証ツール。「決定版レンダリング」として実エディタに統合済み
+- [`motion.md`](./motion.md) — 棒人間のモーション定義。各状態の発生条件（キャレット目線）と表現方法
+
+**企画段階の参考資料（アーカイブ）：**
+チャットでのプロトタイピング段階で作成された資料。企画の経緯・検討過程の記録として保管しています。
+
+- [`prototype/spec.md`](./prototype/spec.md) — 初期企画書（参考資料）
+- [`prototype/input-event-checklist.md`](./prototype/input-event-checklist.md) — イベント仕様の検討記録
+- [`prototype/prototype-editor.html`](./prototype/prototype-editor.html) — 移行前の単一HTMLプロトタイプ
+- [`prototype/prototype-decision-render.html`](./prototype/prototype-decision-render.html) — レンダリング手法の検証ツール
 
 ## モーション図鑑
 
